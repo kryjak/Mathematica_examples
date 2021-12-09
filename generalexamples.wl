@@ -71,7 +71,7 @@ g // MatrixForm
 
 
 f[a_] := Simplify[\!\(
-\*SubscriptBox[\(\[Del]\), \({x, y, z}\)]\(pars[\([\)\(a, 2\)\(]\)]\)\) /. coords,
+\*SubscriptBox[\(\[Del]\), \({x, y, z}\)]\(pars[\([a, 2]\)]\)\) /. coords,
 				  Assumptions->{r>0,0<\[Theta]<Pi,\[Phi]\[Element]Reals}
 				  ] 
 Do[Print[Style[e,Bold]^pars[[i,1]]," = ",f[i]], {i,1,3}]
@@ -394,7 +394,6 @@ dates
 (*Perhaps with an optional argument:*)
 
 
-(* ::Code::Initialization:: *)
 (* https://mathematica.stackexchange.com/questions/2651/how-to-pass-a-symbol-name-to-a-function-with-any-of-the-hold-attributes/2677#2677 *)
 (* https://mathematica.stackexchange.com/questions/17767/how-to-modify-function-argument *)
 Clear[list]
@@ -562,7 +561,6 @@ MaTeX["
 
 (* ::Input:: *)
 (**)
-(**)
 
 
 (* ::Section::Closed:: *)
@@ -634,7 +632,7 @@ Map[Function[x, Select[x, Times@@Boole[FreeQ[x, #] &/@ {a,b,c}]==1]], {a,c,d}]
 Function[x, Select[{a,c,d}, Times@@Boole[FreeQ[{a,c,d}, #] &/@ {a,b,c}]==1]]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*TensorContract*)
 
 
@@ -738,3 +736,60 @@ Function[x, Select[{a,c,d}, Times@@Boole[FreeQ[{a,c,d}, #] &/@ {a,b,c}]==1]]
 (*(* alternatively, we can rewrite each sum as Mstilde[1,j,k,l]+Mttilde[1,j,k,l] by using the 2<->4 swap again *) (* Eq. 27.81 *)*)
 (*(* this means that the amplitude is written as: Sum[Mtilde[1,j,k,l]*tr[1,j,k,l], {permutations of {j,k,l}}], where Mtilde = Mstilde + Mttilde are the colour-ordered partial amplitudes *)*)
 (*(* Hence, each trace receives a contribution from the partial amplitudes which contains a sum of PLANAR diagrams only within a given particle ordering *)*)
+
+
+(* ::Section:: *)
+(*Generating momentum twistors*)
+
+
+(* ::Input:: *)
+(*(* this follows Appendix A of [hep-ph/1310.1051] and shows how to generate 5pt massless kinematics *)*)
+
+
+(* ::Input:: *)
+(*(* start by defining a parametrisation of momentum twistors *)*)
+(*(* there are many ways to do it and it's not clear which one will lead to most compact expressions *)*)
+(*Zmat = {{1,0,1/x1,1/x1+1/x2,1/x1+1/x2+1/x3}, {0,1,1,1,1}, {0,0,0,x4,1}, {0,0,1,1,x5/x4}};*)
+
+
+(* ::Input:: *)
+(*Zmat//MatrixForm (* not there are 4N-N-10 = 5 variables (momenta invariant under Poincare - 10-dim symmetry, and little group scaling - U(1) for each momentum *)*)
+
+
+(* ::Input:: *)
+(*(* define holomorphic spinors *)*)
+(*lambda[i_] := Thread@Zmat[[;;2,i]]*)
+(*mu[i_] := Thread@Zmat[[3;;,i]]*)
+(*mu[0] = mu[5];*)
+(*mu[6] = mu[1];*)
+(*lambda[6]=lambda[1];*)
+(*lambda[0]=lambda[5];*)
+
+
+(* ::Input:: *)
+(*(* 2D Levi-Civita *)*)
+(*epsmat = {{0,1},{-1,0}};*)
+
+
+(* ::Input:: *)
+(*(* define the angle bracket *)*)
+(*angle[i_,j_] := lambda[i] . epsmat . lambda[j]*)
+
+
+(* ::Input:: *)
+(*(* define the anti-holomorphic spinors *)*)
+(*lambdatilde[i_]:=(angle[i,i+1]*mu[i-1]+angle[i+1,i-1]*mu[i]+angle[i-1,i]*mu[i+1])/(angle[i,i+1]*angle[i-1,i])*)
+
+
+(* ::Input:: *)
+(*(* define the square bracket *)*)
+(*square[i_,j_] := lambdatilde[i] . epsmat . lambdatilde[j]*)
+
+
+(* ::Input:: *)
+(*(* off by some minus signs, but that's the general idea *)*)
+(*s[i_,j_]:=angle[i,j]*square[j,i]*)
+
+
+(* ::Input:: *)
+(*{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5]} // Simplify*)
