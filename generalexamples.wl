@@ -704,7 +704,7 @@ Function[x, Select[{a,c,d}, Times@@Boole[FreeQ[{a,c,d}, #] &/@ {a,b,c}]==1]]
 (*tr5^2-GramDet//Simplify*)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Colour-ordering at tree-level (Schwartz example)*)
 
 
@@ -793,3 +793,101 @@ Function[x, Select[{a,c,d}, Times@@Boole[FreeQ[{a,c,d}, #] &/@ {a,b,c}]==1]]
 
 (* ::Input:: *)
 (*{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5]} // Simplify*)
+
+
+(* ::Section:: *)
+(*Tensor decomposition of an amplitude *)
+
+
+(* the goal of the following is to derive the basis needed in tensor decomposition of a 5pt gluon amplitude, as described in [hep-ph/1906.03298] *)
+
+
+(* for n>=5, the 4D space is spanned by the external momenta: *)
+ps = p /@ Range[4]
+
+
+(* for an n-pt amplitude, the tensor basis is composed of rank-n tensors T[mu1,mu2,...,mun] *)
+(* so for n=5, we have 5 free indices *)
+(* we can construct 3 possible types of monomials with exactly 5 indices: *)
+(* 1. p1[mu1]p2[mu2]p3[mu3]p4[mu4]p5[mu5] - only external momenta *)
+(* 2. p1[mu1]p2[mu2]p3[mu3]g[mu4,mu5] - one g[mu,nu] and 3 external momenta *)
+(* 3. p1[mu1]g[mu2,mu3]g[mu4,mu5] - two g[mu,nu] and one external momentum *)
+(* NOTE: the momenta here are drawn from the {p1,...p4} set, that is excluding p5 ! *)
+(* we will now construct all the possible the monomials of each type *)
+
+
+(* p1[mu1]p2[mu2]p3[mu3]p4[mu4]p5[mu5] *)
+fiveps = Times@@Table[mu[i,#[[i]]],{i,Length[#]}]&/@Tuples[ps,5];
+
+
+(* p1[mu1]p2[mu2]p3[mu3]g[mu4,mu5] *)
+mus = Table[mu[i],{i,Range[5]}];
+musforg = Subsets[mus, {2}];
+gs = g@@@musforg;
+musforp = Complement[mus,#]&/@musforg;
+threeps1g = gs*Table[Times@@@(Times[ii,#]&/@Tuples[ps,3]/.mu[i_]*p[j_]->mu[i,p[j]]), {ii,musforp}]//Flatten;
+
+
+(* p1[mu1]g[mu2,mu3]g[mu4,mu5] *)
+mus = Table[mu[i],{i,Range[5]}];
+musforg1 = Subsets[mus, {2}];
+gs1 = g@@@musforg1;
+musforg2 = Complement[mus,#]&/@musforg1;
+musforg2 = Subsets[#,{2}]&/@musforg2;
+gs2 = (g@@@#) &/@ musforg2;
+gs1gs2 = Table[gs1[[ii]]*#&/@gs2[[ii]], {ii,Length[gs1]}]//Flatten;
+muforp = Flatten[Complement[mus, #] &/@ Flatten[Table[Join[musforg1[[ii]],#]&/@musforg2[[ii]],{ii,Length@musforg1}], 1]/.mu[i_]:>(mu[i,#]&/@ps), 1];
+onep2gs = gs1gs2*muforp//Flatten//DeleteDuplicates;
+(* delete duplicates becase g[mu[1],mu[2]]*g[mu[3],mu[4]] = g[mu[3],mu[4]]*g[mu[1],mu[2]], so we're overcounting by 2 *)
+
+
+Length/@{fiveps,threeps1g,onep2gs}
+{4^5, 4^3*Binomial[5,2], 4*Binomial[5,2]*Binomial[3,2]/2}
+
+
+(* so overall we have 1724 tensor basis elements *)
+tensorbasis = Join[fiveps,threeps1g,onep2gs];
+Length[tensorbasis]
+
+
+(* but the basis is contracted with external polarisation vectors, see e.g. (Eq. 2.7), which will impose further constraints *)
+epsilons = Times@@(mu[#,eps[p[#]]] &/@ Range[5])
+
+
+(* multiply the basis by the epsilons, contract the indices and impose constraints *)
+SetAttributes[dot,Orderless]
+fixgauge = {
+	mu[i_,eps[p[j_]]]*mu[i_,p[k_]]:>dot[eps[p[j]],p[k]], (* contract indices *)
+	dot[eps[p[i_]],p[i_]]:>0, (* transversality condition eps(i).p(i)=0 *)
+	x___*dot[eps[p[5]],p[4]]*y___->x*y*Table[dot[eps[p[5]],p[i]],{i,3}], (* needed to impose eps(5).p(5)=0 as p(5) does not appear explicitly *)
+	Table[dot[eps[p[i]],p[i+1]]:>0, {i,Range[4]}], (* fix the gauge with the cyclic choice *) (* I don't understand why this is a gauge choice *)
+	dot[eps[p[5]],p[1]]:>0,
+	dot[eps[p[4]],p[3]]:>0 (* this is required to bring the number of basis elements from 185 to 142 - but where does it come from ??? *)
+	} // Flatten;
+
+
+(* after imposing the constraints, the basis has 142 elements *)
+tensorbasis = epsilons*tensorbasis //. fixgauge // Flatten;
+tensorbasis = DeleteCases[tensorbasis,0] // DeleteDuplicates;
+tensorbasis//Length
+
+
+(* but because these are physical projectors, i.e. for external states in 4D, we reject all terms depend on g[mu,nu] *)
+(* now only 32 elements remain, in agreement with (Eq. 4.3) *)
+basisfreeofg = Select[tensorbasis, FreeQ[Head/@Variables[#], g] &]//DeleteDuplicates;
+basisfreeofg = basisfreeofg /. dot[eps[p[i_]],p[j_]]:>mu[i,p[j]];
+basisfreeofg // Length
+
+
+(* we can check to make sure these are the same as given in the ancilliary files of the paper *)
+Tensors5g={
+p1[mu2]*p1[mu3]*p1[mu4]*p2[mu5]*p3[mu1],p1[mu2]*p1[mu3]*p2[mu4]*p2[mu5]*p3[mu1],p1[mu2]*p1[mu3]*p1[mu4]*p3[mu1]*p3[mu5],p1[mu2]*p1[mu3]*p2[mu4]*p3[mu1]*p3[mu5],
+p1[mu2]*p1[mu4]*p2[mu3]*p2[mu5]*p3[mu1],p1[mu2]*p2[mu3]*p2[mu4]*p2[mu5]*p3[mu1],p1[mu2]*p1[mu4]*p2[mu3]*p3[mu1]*p3[mu5],p1[mu2]*p2[mu3]*p2[mu4]*p3[mu1]*p3[mu5],
+p1[mu3]*p1[mu4]*p2[mu5]*p3[mu1]*p4[mu2],p1[mu3]*p2[mu4]*p2[mu5]*p3[mu1]*p4[mu2],p1[mu3]*p1[mu4]*p3[mu1]*p3[mu5]*p4[mu2],p1[mu3]*p2[mu4]*p3[mu1]*p3[mu5]*p4[mu2],
+p1[mu4]*p2[mu3]*p2[mu5]*p3[mu1]*p4[mu2],p2[mu3]*p2[mu4]*p2[mu5]*p3[mu1]*p4[mu2],p1[mu4]*p2[mu3]*p3[mu1]*p3[mu5]*p4[mu2],p2[mu3]*p2[mu4]*p3[mu1]*p3[mu5]*p4[mu2],
+p1[mu2]*p1[mu3]*p1[mu4]*p2[mu5]*p4[mu1],p1[mu2]*p1[mu3]*p2[mu4]*p2[mu5]*p4[mu1],p1[mu2]*p1[mu3]*p1[mu4]*p3[mu5]*p4[mu1],p1[mu2]*p1[mu3]*p2[mu4]*p3[mu5]*p4[mu1],
+p1[mu2]*p1[mu4]*p2[mu3]*p2[mu5]*p4[mu1],p1[mu2]*p2[mu3]*p2[mu4]*p2[mu5]*p4[mu1],p1[mu2]*p1[mu4]*p2[mu3]*p3[mu5]*p4[mu1],p1[mu2]*p2[mu3]*p2[mu4]*p3[mu5]*p4[mu1],
+p1[mu3]*p1[mu4]*p2[mu5]*p4[mu1]*p4[mu2],p1[mu3]*p2[mu4]*p2[mu5]*p4[mu1]*p4[mu2],p1[mu3]*p1[mu4]*p3[mu5]*p4[mu1]*p4[mu2],p1[mu3]*p2[mu4]*p3[mu5]*p4[mu1]*p4[mu2],
+p1[mu4]*p2[mu3]*p2[mu5]*p4[mu1]*p4[mu2],p2[mu3]*p2[mu4]*p2[mu5]*p4[mu1]*p4[mu2],p1[mu4]*p2[mu3]*p3[mu5]*p4[mu1]*p4[mu2],p2[mu3]*p2[mu4]*p3[mu5]*p4[mu1]*p4[mu2]};
+
+SubsetQ[basisfreeofg /. mu[i_,p[j_]]:> ToExpression["p"<>ToString[j]][ToExpression["mu"<>ToString[i]]], Tensors5g]
