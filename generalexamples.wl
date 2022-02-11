@@ -799,6 +799,10 @@ Function[x, Select[{a,c,d}, Times@@Boole[FreeQ[{a,c,d}, #] &/@ {a,b,c}]==1]]
 (*Tensor decomposition of an amplitude *)
 
 
+(* ::Subsection:: *)
+(*5pt or more*)
+
+
 (* the goal of the following is to derive the basis needed in tensor decomposition of a 5pt gluon amplitude, as described in [hep-ph/1906.03298] *)
 
 
@@ -891,3 +895,77 @@ p1[mu3]*p1[mu4]*p2[mu5]*p4[mu1]*p4[mu2],p1[mu3]*p2[mu4]*p2[mu5]*p4[mu1]*p4[mu2],
 p1[mu4]*p2[mu3]*p2[mu5]*p4[mu1]*p4[mu2],p2[mu3]*p2[mu4]*p2[mu5]*p4[mu1]*p4[mu2],p1[mu4]*p2[mu3]*p3[mu5]*p4[mu1]*p4[mu2],p2[mu3]*p2[mu4]*p3[mu5]*p4[mu1]*p4[mu2]};
 
 SubsetQ[basisfreeofg /. mu[i_,p[j_]]:> ToExpression["p"<>ToString[j]][ToExpression["mu"<>ToString[i]]], Tensors5g]
+
+
+(* ::Subsection:: *)
+(*4pt example*)
+
+
+(* for n=4, the 4D space is spanned by 3 of the external momenta: *)
+ps = p /@ Range[3]
+
+
+(* for an n-pt amplitude, the tensor basis is composed of rank-n tensors T[mu1,mu2,...,mun] *)
+(* so for n=4, we have 4 free indices *)
+(* we can construct 3 possible types of monomials with exactly 4 indices: (see Eq.3.3 of [hep-ph/0202266]) *)
+(* 1. p1[mu1]p2[mu2]p3[mu3]p4[mu4] - only external momenta *)
+(* 2. p1[mu1]p2[mu2]g[mu3,mu4] - one g[mu,nu] and 2 external momenta *)
+(* 3. g[mu1,mu2]g[mu3,mu4] - two g[mu,nu] *)
+(* NOTE: the momenta here are drawn from the {p1,...p3} set, that is excluding p4 ! *)
+(* we will now construct all the possible the monomials of each type *)
+
+
+(* p1[mu1]p2[mu2]p3[mu3]p4[mu4] *)
+fourps = Times@@Table[mu[i,#[[i]]],{i,Length[#]}]&/@Tuples[ps,4];
+
+
+(* p1[mu1]p2[mu2]g[mu3,mu4] *)
+mus = Table[mu[i],{i,Range[4]}];
+musforg = Subsets[mus, {2}];
+gs = g@@@musforg;
+musforp = Complement[mus,#]&/@musforg;
+twops1g = gs*Table[Times@@@(Times[ii,#]&/@Tuples[ps,2]/.mu[i_]*p[j_]->mu[i,p[j]]), {ii,musforp}]//Flatten;
+
+
+(* g[mu1,mu2]g[mu3,mu4] *)
+mus = Table[mu[i],{i,Range[4]}];
+musforg1 = Subsets[mus, {2}];
+gs1 = g@@@musforg1;
+musforg2 = Complement[mus,#]&/@musforg1;
+musforg2 = Subsets[#,{2}]&/@musforg2;
+gs2 = (g@@@#) &/@ musforg2;
+gs1gs2 = Table[gs1[[ii]]*#&/@gs2[[ii]], {ii,Length[gs1]}]//Flatten // DeleteDuplicates
+(*muforp = Flatten[Complement[mus, #] &/@ Flatten[Table[Join[musforg1[[ii]],#]&/@musforg2[[ii]],{ii,Length@musforg1}], 1]/.mu[i_]:>(mu[i,#]&/@ps), 1];*)
+(*onep2gs = gs1gs2*muforp//Flatten//DeleteDuplicates;*)
+(* delete duplicates becase g[mu[1],mu[2]]*g[mu[3],mu[4]] = g[mu[3],mu[4]]*g[mu[1],mu[2]], so we're overcounting by 2 *)
+
+
+Length/@{fourps,twops1g,gs1gs2}
+{3^4, 3^2*Binomial[4,2], Binomial[4,2]/2}
+
+
+(* so overall we have 1724 tensor basis elements *)
+tensorbasis = Join[fourps,twops1g,gs1gs2];
+Length[tensorbasis]
+
+
+(* but the basis is contracted with external polarisation vectors, which will impose further constraints *)
+epsilons = Times@@(mu[#,eps[p[#]]] &/@ Range[4])
+
+
+(* multiply the basis by the epsilons, contract the indices and impose constraints *)
+SetAttributes[dot,Orderless]
+fixgauge = {
+	mu[i_,eps[p[j_]]]*mu[i_,p[k_]]:>dot[eps[p[j]],p[k]], (* contract indices *)
+	dot[eps[p[i_]],p[i_]]:>0, (* transversality condition eps(i).p(i)=0 *)
+	x___*dot[eps[p[4]],p[3]]*y___->x*y*Table[dot[eps[p[4]],p[i]],{i,2}], (* needed to impose eps(5).p(5)=0 as p(5) does not appear explicitly *)
+	Table[dot[eps[p[i]],p[i+1]]:>0, {i,Range[4]}], (* fix the gauge with the cyclic choice *) (* I don't understand why this is a gauge choice *)
+	dot[eps[p[4]],p[1]]:>0,
+	dot[eps[p[3]],p[2]]:>0 (* this is required to bring the number of basis elements from 185 to 142 - but where does it come from ??? *)
+	} // Flatten;
+
+
+(* after imposing the constraints, the basis has 142 elements *)
+tensorbasis = epsilons*tensorbasis //. fixgauge // Flatten;
+tensorbasis = DeleteCases[tensorbasis,0] // DeleteDuplicates;
+tensorbasis//Length
