@@ -738,7 +738,7 @@ Function[x, Select[{a,c,d}, Times@@Boole[FreeQ[{a,c,d}, #] &/@ {a,b,c}]==1]]
 (*(* Hence, each trace receives a contribution from the partial amplitudes which contains a sum of PLANAR diagrams only within a given particle ordering *)*)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Generating momentum twistors*)
 
 
@@ -969,3 +969,244 @@ fixgauge = {
 tensorbasis = epsilons*tensorbasis //. fixgauge // Flatten;
 tensorbasis = DeleteCases[tensorbasis,0] // DeleteDuplicates;
 tensorbasis//Length
+
+
+(* ::Section:: *)
+(*Changing variables within FF*)
+
+
+<<FiniteFlow`
+
+
+(* ::Subsection::Closed:: *)
+(*A general example*)
+
+
+FFNewGraph[graphXY,in,{x,y}];
+FFAlgRatFunEval[graphXY,evalXY,{in},{x,y},{x^4+y^8}];
+FFGraphOutput[graphXY,evalXY];
+
+(* {x,y}->{a^2,b^2} *)
+FFNewGraph[graphAB,in,{a,b}];
+FFAlgRatFunEval[graphAB,evalAB,{in},{a,b},{a^2,b^2}];
+FFAlgSimpleSubgraph[graphAB,subnode,{evalAB},graphXY];
+
+FFGraphOutput[graphAB,subnode];
+FFReconstructFunction[graphAB,{a,b}]
+
+
+(* ::Subsection::Closed:: *)
+(*sij -> MTs example*)
+
+
+process = "H3g";
+psmode = "PSanalytic";
+
+
+<< "InitTwoLoopToolsFF.m"
+<<"~/gitrepos/myfiniteflowexamples/setupfiles/Setup_H3g.m"
+Get["~/gitrepos/myfiniteflowexamples/amplitudes/GlobalMapProcessSetup.m"];
+
+
+(* this is how we can perform a variable change within the FF setup *)
+(* first, create a graph in terms of the original variables: *)
+vvars = {s12,s23,s4};
+FFNewGraph[sijgraph,in,vvars];
+FFAlgRatFunEval[sijgraph,evalnode,{in},vvars,{(s12^4+s4^2)/s23}];
+FFGraphOutput[sijgraph,evalnode];
+
+(* then get the list of old variables in terms of the news ones *)
+(* in this case, we're converting sijs to MTs *)
+sijstomts = GetMomentumTwistorExpression[{s[1,2],s[2,3],s[4]},PSanalytic]
+vvarsmt = Variables[sijstomts]
+
+(* initiate a graph in the new variables *)
+FFNewGraph[mtgraph,in2,vvarsmt];
+(* evaluate the substitution as a node *)
+FFAlgRatFunEval[mtgraph, newvars, {in2}, vvarsmt, sijstomts];
+(* use that node as input for the subgraph where we evaluate the original graph in terms of sijs *)
+FFAlgSimpleSubgraph[mtgraph,subnode,{newvars},sijgraph];
+FFGraphOutput[mtgraph,subnode];
+
+(* check *)
+res = FFReconstructFunction[mtgraph,vvarsmt];
+exprmt = GetMomentumTwistorExpression[{(s[1,2]^4+s[4]^2)/s[2,3]},PSanalytic];
+res/exprmt // Simplify
+
+
+(* ::Section:: *)
+(*GetSlice*)
+
+
+<<FiniteFlow`
+Get["~/gitrepos/myfiniteflowexamples/TwoLoopTools/BCFWreconstructionTools/BCFWReconstructFunction.wl"];
+
+
+expr = 1/s12;
+var = {s12};
+FFNewGraph[graph,in,var];
+FFAlgRatFunEval[graph,evalnode,{in},var,{expr}];
+FFGraphOutput[graph,evalnode];
+
+
+(* get slice evaluates the expression on a univariate slice in xx *)
+(* each graph variable is replaced with A + B*tt, where A,B - random primes *)
+(* this sliced graph is then reconstructed - modulo FFPrimeNo[0] *)
+{slicerules, coeffs} = GetSlice[graph,var]
+(* we can check that the numers in coeffs correpsond to the slice variables by doing rational reconstruction: *)
+s12 /. slicerules
+coeffs /. x_Integer :> FFRatRec[x,FFPrimeNo[0]] // Simplify
+
+
+(* ::Section:: *)
+(*Factor*)
+
+
+(* factor a polynomial *)
+Factor[x^10-1]
+(* its coefficients are taken modulo a number: *)
+Factor[x^10-1,Modulus->7]
+(* what's going on here? *)
+Factor[11+3x,Modulus->7]//Expand
+
+
+(* ::Section::Closed:: *)
+(*Understanding sparse multiplication and FF degrees*)
+
+
+list1 = {(x^4+x^2)/(x*y^3),y/x,0,0,0,0};
+list2 = {(x+y^2)/(x^3+y^4),0,0,0,0,z^17};
+MatrixForm/@{ArrayReshape[list1,{2,3}],ArrayReshape[list2,{3,2}]}
+vars = {x,y,z};
+FFNewGraph[graph,in,vars];
+FFAlgRatFunEval[graph,evalnode1,{in},vars,list1];
+FFAlgRatFunEval[graph,evalnode2,{in},vars,list2];
+FFAlgMatMul[graph,matnodeA,{evalnode1, evalnode2},2,3,2];
+FFGraphOutput[graph,matnodeA];
+FFReconstructFunction[graph,vars]
+
+(* or use sparse multiplication: *)
+list3 = DeleteCases[list1, 0]
+list4 = DeleteCases[list2, 0]
+FFAlgRatFunEval[graph,evalnode3,{in},vars,list3];
+FFAlgRatFunEval[graph,evalnode4,{in},vars,list4];
+FFAlgSparseMatMul[graph,matnodeB,{evalnode3, evalnode4},2,3,2,{{1,2},{}},{{1},{},{2}}];
+FFGraphOutput[graph,matnodeB];
+FFReconstructFunction[graph,vars]
+
+degs = FFAllDegrees[graph];
+FFDumpDegrees[graph,"degfile.m"];
+
+
+(* FFDumpDegrees should be imported with Import["filename", "Integer64"] *)
+(* length of the list is interpreted as: *)
+1+1+(1+1+(1+1+1+1)*FFNParsOut[graph,in])*FFNParsOut[graph]
+(* which stands for: *)
+(* #vars in + output node length + (maxdegnum + maxdegdenom + (maxdegnum in var i + mindegnum in var i + maxdegdenom in var i + maxdegdenom in var i)*#vars in)*output node length *)
+
+
+degs = Import["degfile.m","Integer64"];
+degs
+nvars = degs[[1]];
+parsout = degs[[2]];
+stepsize = 2+4*nvars;
+totaldegsnum = Table[degs[[3+stepsize*i]],{i,0,parsout-1}];
+totaldegsdenom = Table[degs[[4+stepsize*i]],{i,0,parsout-1}];
+maxdegsnum = Association@Table[Rule[vars[[i]], Table[degs[[5+4*(i-1)+stepsize*j]],{j,0,parsout-1}]],{i,nvars}];
+maxdegsdenom = Association@Table[Rule[vars[[i]], Table[degs[[7+4*(i-1)+stepsize*j]],{j,0,parsout-1}]],{i,nvars}];
+
+
+Print["totaldegsnum = ", totaldegsnum]
+Print["totaldegsdenom = ", totaldegsdenom]
+Print["maxdegsnum = ", maxdegsnum]
+Print["maxdegsdenom = ", maxdegsdenom]
+Print["Max num total degree = ", Max@totaldegsnum]
+Print["Max denom total degree = ", Max@totaldegsdenom]
+Print["Max num degree in ", #,": ", Max@maxdegsnum[#]] &/@ vars;
+Print["Max denom degree in ", #, ": ", Max@maxdegsdenom[#]] &/@ vars;
+
+
+(* ::Section:: *)
+(*Generating trace structures*)
+
+
+(* generate 4! = 24 permutations with a1 fixed at the first position *)
+allperms = Prepend[#, 1] &/@ Permutations[{2,3,4,5}];
+(* remove 12 of them by applying the reflection identity *)
+indepperms = {};
+Do[tmp = RotateRight@Reverse@i; If[!MemberQ[indepperms,tmp], AppendTo[indepperms,i]], {i,allperms}]
+(* these are also used in the colour run file *)
+Print["independent permutations: ", indepperms]
+
+
+(* ::Section:: *)
+(*Sorting lists by weight*)
+
+
+ints = {j[t322ZZZMp2314,0,2,0,1,1,1,1,0,0],j[t331ZZMZp1243,2,1,0,0,1,1,1,0,0],j[t331ZZMZp1342,2,1,0,0,1,1,1,0,0]}
+fams = ints /. j[t_,x__]:>t
+Do[weight[fams[[-ii]]]=ii, {ii,Length@fams}]
+SortBy[{j[t322ZZZMp2314,0,2,0,1,1,1,1,0,0],j[t331ZZMZp1243,2,1,0,0,1,1,1,0,0],j[t331ZZMZp1342,2,1,0,0,1,1,1,0,0]}, weight[#/.j[t_,x__]:>t] &]
+
+
+(* ::Section:: *)
+(*Testing Frules*)
+
+
+(* Frules serve to translate the topo[...] notation onto LiteRed's t***p*** notation *)
+(* moreover, we implement by hand the mapping from bubble insertions onto penta/hexa-triangles *)
+
+
+(* we can check this mappings by making sure that the joint set of {props, ISPs} is consistent *)
+(* first, import the ISPs *)
+
+
+UserDefinedISPs[topo[{{p1_},{p2_}},{{},{},{}},{{p3_},{p4_}},{{},{},{}},{}]] := Join[{prop[(k[1]+p[p4])^2],prop[(k[2]+p[p1])^2]},{dot[k[1],w[1,p[1],p[2],p[3]]],dot[k[2],w[1,p[1],p[2],p[3]]]}];
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_}},{{},{},{}},{{p4_}},{{},{},{}},{}]] := Join[{prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2]},{dot[k[1],w[1,p[1],p[2],p[3]]],dot[k[2],w[1,p[1],p[2],p[3]]]}];
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_},{p4_}},{{},{},{}},{},{{},{},{}},{}]] := Join[{prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2],prop[(k[2]+p[p1]+p[p2]+p[p3])^2]},{dot[k[1],w[1,p[1],p[2],p[3]]],dot[k[2],w[1,p[1],p[2],p[3]]]}];
+UserDefinedISPs[topo[{{p1_},{p2_}},{{},{},{}},{{p3_}},{{},{},{}},{{p4_}}]] := Join[{prop[(k[1]+p[p4])^2],prop[(k[2]+p[p1])^2]},{dot[k[1],w[1,p[1],p[2],p[3]]],dot[k[2],w[1,p[1],p[2],p[3]]]}];
+
+
+(* now check the loop momenta in the two families *)
+(* remember to impose momentum conservation and a possible FruleShift *)
+
+
+bubble = topo[{{1}, {4}, {2}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}];
+propsbub = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@bubble, FreeQ[#,w] &] /. p[4]->-p[1]-p[2]-p[3] // DeleteDuplicates
+pentatri = topo[{{1}, {4}, {2}}, {{}, {}, {}}, {{3}}, {{}, {}, {}}, {}];
+propspt = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@pentatri, FreeQ[#,w] &] /. p[4]->-p[1]-p[2]-p[3]  (*/. {k[1] -> k[1] - p[1], k[2] -> k[2] + p[1]} *)
+propsbub[[{1, 2, 3, 4, 5, 9, 6, 7, 8}]]===propspt
+
+
+bubbles = {
+		topo[{{4},{1},{2},{3}},{{},{},{}},{},{{},{},{}},{}], (* t511pijkl->t421MZZZpijkl *)
+        topo[{{4},{1},{3},{2}},{{},{},{}},{},{{},{},{}},{}], (* {1, 2, 3, 4, 5, 9, 6, 7, 8} *)
+        topo[{{4},{2},{1},{3}},{{},{},{}},{},{{},{},{}},{}],
+        topo[{{4},{2},{3},{1}},{{},{},{}},{},{{},{},{}},{}],
+        topo[{{4},{3},{1},{2}},{{},{},{}},{},{{},{},{}},{}],
+        topo[{{4},{3},{2},{1}},{{},{},{}},{},{{},{},{}},{}],
+       
+        topo[{{1},{4},{2},{3}},{{},{},{}},{},{{},{},{}},{}], (* t511pijkl->t421ZMZZpijkl *)
+        topo[{{3},{4},{1},{2}},{{},{},{}},{},{{},{},{}},{}], (* {1, 2, 3, 4, 5, 9, 6, 7, 8} *)
+        topo[{{3},{4},{2},{1}},{{},{},{}},{},{{},{},{}},{}],
+       
+        topo[{{1},{4},{3},{2}},{{},{},{}},{},{{},{},{}},{}], (* t511pijkl->t421MZZZpjkli *)
+        topo[{{2},{4},{1},{3}},{{},{},{}},{},{{},{},{}},{}], (* {2, 3, 4, 1, 7, 5, 6, 8, 9} *)
+        topo[{{2},{4},{3},{1}},{{},{},{}},{},{{},{},{}},{}]
+       };
+
+
+Do[Print[
+"F["<>ToString[tt]<>", p__] :> F["<>(tt/. topo[x__]:>"t421MZZZp"<>StringJoin[ToString/@Flatten@DeleteCases[x,{}]])<>", Sequence @@ {p}[[{1, 2, 3, 4, 5, 9, 6, 7, 8}]]],"
+],{tt,bubbles[[;;6]]}]
+
+Do[Print[
+"F["<>ToString[tt]<>", p__] :> F["<>(tt/. topo[x__]:>"t421ZMZZp"<>StringJoin[ToString/@Flatten@DeleteCases[x,{}]])<>", Sequence @@ {p}[[{1, 2, 3, 4, 5, 9, 6, 7, 8}]]],"
+],{tt,bubbles[[7;;9]]}]
+
+Do[Print[ (* note the RotateLeft here *)
+"F["<>ToString[tt]<>", p__] :> F["<>(tt/. topo[x__]:>"t421MZZZp"<>StringJoin[ToString/@RotateLeft[Flatten@DeleteCases[x,{}]]])<>", Sequence @@ {p}[[{2, 3, 4, 1, 7, 5, 6, 8, 9}]]],"
+],{tt,bubbles[[10;;]]}]
+
+
+
