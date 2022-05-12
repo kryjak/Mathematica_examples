@@ -680,7 +680,7 @@ Function[x, Select[{a,c,d}, Times@@Boole[FreeQ[{a,c,d}, #] &/@ {a,b,c}]==1]]
 (*TensorContract[%,{{1,4},{2,5},{3,6}}]*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*tr5 is parity-odd*)
 
 
@@ -693,7 +693,11 @@ Function[x, Select[{a,c,d}, Times@@Boole[FreeQ[{a,c,d}, #] &/@ {a,b,c}]==1]]
 (*tr5-(-tr5parity)//Simplify*)
 
 
-(* ::Subsubsection:: *)
+tr5 + (tr5 /. {p[1,x_]:>p[3,x], p[3,x_]:>p[1,x]}) // Simplify
+tr5 + (tr5 /. {p[1,x_]:>p[2,x], p[2,x_]:>p[1,x]}) // Simplify
+
+
+(* ::Subsubsection::Closed:: *)
 (*tr5^2 = Gram determinant*)
 
 
@@ -795,7 +799,7 @@ Function[x, Select[{a,c,d}, Times@@Boole[FreeQ[{a,c,d}, #] &/@ {a,b,c}]==1]]
 (*{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5]} // Simplify*)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Tensor decomposition of an amplitude *)
 
 
@@ -971,7 +975,7 @@ tensorbasis = DeleteCases[tensorbasis,0] // DeleteDuplicates;
 tensorbasis//Length
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Changing variables within FF*)
 
 
@@ -1034,12 +1038,13 @@ exprmt = GetMomentumTwistorExpression[{(s[1,2]^4+s[4]^2)/s[2,3]},PSanalytic];
 res/exprmt // Simplify
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*GetSlice*)
 
 
 <<FiniteFlow`
 Get["~/gitrepos/myfiniteflowexamples/TwoLoopTools/BCFWreconstructionTools/BCFWReconstructFunction.wl"];
+Get["~/gitrepos/myfiniteflowexamples/TwoLoopTools/BCFWreconstructionTools/ReconstructFunctionApart.wl"];
 
 
 expr = 1/s12;
@@ -1053,12 +1058,49 @@ FFGraphOutput[graph,evalnode];
 (* each graph variable is replaced with A + B*tt, where A,B - random primes *)
 (* this sliced graph is then reconstructed - modulo FFPrimeNo[0] *)
 {slicerules, coeffs} = GetSlice[graph,var]
-(* we can check that the numers in coeffs correpsond to the slice variables by doing rational reconstruction: *)
+(* we can check that the numbers in coeffs correspond to the slice variables by doing rational reconstruction: *)
 s12 /. slicerules
 coeffs /. x_Integer :> FFRatRec[x,FFPrimeNo[0]] // Simplify
 
 
-(* ::Section:: *)
+process = "H3g";
+psmode  = "PSanalytic";
+<<"InitTwoLoopToolsFF.m"
+Get["amplitudes/GlobalMapProcessSetup.m"];
+
+
+(* ::Text:: *)
+(*Now let's look at something more complicated. When using RecontructFunctionFactors, we need to caluclate the slice of the graph first.*)
+(*Below we show how to understand the output of that slice.*)
+
+
+FFDeleteGraph[graph]
+expr = GetMomentumTwistorExpression[s[1,3]^3/(eps*s[4]^2), PSanalytic];
+vars = {eps,ex[1],ex[2],ex[5]};
+FFNewGraph[graph,in,vars];
+FFAlgRatFunEval[graph,evalnode,{in},vars,{expr}];
+FFGraphOutput[graph,evalnode];
+
+
+coeffansatz = {s[1,2],s[2,3],s[1,3],s[4]};
+ReconstructFunctionFactors[graph,Join[{eps},PSanalytic],PSanalytic,PSvalues,"CoefficientAnsatz"->coeffansatz];
+
+
+(* the starting point is the FF graph *)
+(* in this case, we know the function analytically: *)
+expr = GetMomentumTwistorExpression[s[1,3]^3/(eps*s[4]^2),PSanalytic]
+(* first, the univariate slice is calculated: *)
+slice = {eps->33845041+64920803 xx,ex[1]->93589099+32934527 xx,ex[2]->23383127+29051563 xx,ex[5]->76172237+74713663 xx};
+expr = expr /. slice;
+(* here the analytic form is known, so it comes out in a factorised form, that's why I'm expanding it *)
+expr = Expand[Numerator[expr]]/Expand[Denominator[expr]]
+(* the slice is normalised such that the coefficient of the xx^0 term in the denominator is always 1 *)
+(* remember that everything has to be evaluated mod p *)
+norm = Coefficient[Denominator[expr],xx,0]
+expr = Expand[Numerator[expr]/norm]/Expand[Denominator[expr]/norm] /. x_Rational:>FFRatMod[x,FFPrimeNo[0]]
+
+
+(* ::Section::Closed:: *)
 (*Factor*)
 
 
@@ -1126,7 +1168,7 @@ Print["Max num degree in ", #,": ", Max@maxdegsnum[#]] &/@ vars;
 Print["Max denom degree in ", #, ": ", Max@maxdegsdenom[#]] &/@ vars;
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Generating trace structures*)
 
 
@@ -1139,7 +1181,7 @@ Do[tmp = RotateRight@Reverse@i; If[!MemberQ[indepperms,tmp], AppendTo[indepperms
 Print["independent permutations: ", indepperms]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Sorting lists by weight*)
 
 
@@ -1149,8 +1191,11 @@ Do[weight[fams[[-ii]]]=ii, {ii,Length@fams}]
 SortBy[{j[t322ZZZMp2314,0,2,0,1,1,1,1,0,0],j[t331ZZMZp1243,2,1,0,0,1,1,1,0,0],j[t331ZZMZp1342,2,1,0,0,1,1,1,0,0]}, weight[#/.j[t_,x__]:>t] &]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Testing Frules*)
+
+
+<<"InitTwoLoopToolsFF.m"
 
 
 (* Frules serve to translate the topo[...] notation onto LiteRed's t***p*** notation *)
@@ -1159,6 +1204,10 @@ SortBy[{j[t322ZZZMp2314,0,2,0,1,1,1,1,0,0],j[t331ZZMZp1243,2,1,0,0,1,1,1,0,0],j[
 
 (* we can check this mappings by making sure that the joint set of {props, ISPs} is consistent *)
 (* first, import the ISPs *)
+
+
+(* ::Subsection::Closed:: *)
+(*H3g*)
 
 
 UserDefinedISPs[topo[{{p1_},{p2_}},{{},{},{}},{{p3_},{p4_}},{{},{},{}},{}]] := Join[{prop[(k[1]+p[p4])^2],prop[(k[2]+p[p1])^2]},{dot[k[1],w[1,p[1],p[2],p[3]]],dot[k[2],w[1,p[1],p[2],p[3]]]}];
@@ -1207,6 +1256,207 @@ Do[Print[
 Do[Print[ (* note the RotateLeft here *)
 "F["<>ToString[tt]<>", p__] :> F["<>(tt/. topo[x__]:>"t421MZZZp"<>StringJoin[ToString/@RotateLeft[Flatten@DeleteCases[x,{}]]])<>", Sequence @@ {p}[[{2, 3, 4, 1, 7, 5, 6, 8, 9}]]],"
 ],{tt,bubbles[[10;;]]}]
+
+(*  FruleShift[topo[{{1}, {4}, {3}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[1], k[2] -> k[2] + p[1]};
+    FruleShift[topo[{{2}, {4}, {1}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[2], k[2] -> k[2] + p[2]};
+    FruleShift[topo[{{2}, {4}, {3}, {1}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[2], k[2] -> k[2] + p[2]}; *)
+
+
+(* ::Subsection::Closed:: *)
+(*H4g*)
+
+
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_}},{{},{},{}},{{p4_},{p5_}},{{},{},{}},{}]] := {prop[(k[1]+p[p5])^2],prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2]};
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_},{p4_}},{{},{},{}},{{p5_}},{{},{},{}},{}]] := {prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2],prop[(k[2]+p[p1]+p[p2]+p[p3])^2]};
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_},{p4_},{p5_}},{{},{},{}},{},{{},{},{}},{}]] := {prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2],prop[(k[2]+p[p1]+p[p2]+p[p3])^2],prop[(k[2]-p[p5])^2]};
+
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_}},{{},{},{}},{{p4_}},{{},{},{}},{{p5_}}]] := {prop[(k[1]+k[2]-p[p1])^2],prop[(k[1]+k[2]-p[p1]-p[p2])^2],prop[(k[1]+k[2]-p[p1]-p[p2]-p[p3])^2]};
+UserDefinedISPs[topo[{{p1_},{p2_}},{{},{},{}},{{p4_},{p5_}},{{},{},{}},{{p3_}}]] := {prop[(k[1]+p[p5])^2],prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2]};
+
+
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_}},{{},{},{},{}},{{p4_},{p5_}}]] := {prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2],prop[(k[1]+p[p5])^2],prop[(k[1]+k[2])^2]};
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_},{p4_}},{{},{},{},{}},{{p5_}}]] := {prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2],prop[(k[2]+p[p1]+p[p2]+p[p3])^2],prop[(k[1]+k[2])^2]};
+
+
+bubbles = {topo[{{5}, {1}, {2}, {3}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}], (* t611pijklm->t521MZZZZpijklm *)
+        topo[{{5}, {1}, {4}, {3}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],    (* {1, 2, 3, 4, 5, 6, 11, 7 ,8 ,9, 10} *)
+        topo[{{5}, {2}, {1}, {4}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+        topo[{{5}, {2}, {3}, {4}, {1}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+        topo[{{5}, {3}, {2}, {1}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+        topo[{{5}, {3}, {4}, {1}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+        topo[{{5}, {4}, {1}, {2}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+        topo[{{5}, {4}, {3}, {2}, {1}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+
+        topo[{{1}, {5}, {2}, {3}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],   (* t611pijklm->t521MZZZZpijklm *)
+        topo[{{1}, {5}, {4}, {3}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],   (* {1, 2, 3, 4, 5, 6, 11, 7 ,8 ,9, 10} *)
+        topo[{{2}, {5}, {1}, {4}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+        topo[{{2}, {5}, {3}, {4}, {1}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+        topo[{{3}, {5}, {2}, {1}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+        topo[{{3}, {5}, {4}, {1}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+        topo[{{4}, {5}, {1}, {2}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+        topo[{{4}, {5}, {3}, {2}, {1}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+
+        topo[{{1}, {2}, {5}, {3}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],  (* t611pijklm->t521ZMZZZpjklmi *)
+        topo[{{2}, {3}, {5}, {4}, {1}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],  (* {2, 3, 4, 5, 1, 8, 6, 7, 9, 10, 11} *)
+        topo[{{3}, {2}, {5}, {1}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],
+        topo[{{3}, {4}, {5}, {1}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]};
+
+
+bubble = bubbles[[20]]
+propsbub = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@bubble, FreeQ[#,w] &] /. p[5]->-p[1]-p[2]-p[3]-p[4] // DeleteDuplicates
+hexatri = topo[{{4}, {5}, {1}, {2}}, {{}, {}, {}}, {{3}}, {{}, {}, {}}, {}];
+propsht = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@hexatri, FreeQ[#,w] &] /. p[5]->-p[1]-p[2]-p[3]-p[4]  /. {k[1] -> k[1] - p[3], k[2] -> k[2] + p[3]} 
+propsbub[[{2, 3, 4, 5, 1, 8, 6, 7, 9, 10, 11}]]===propsht
+
+
+Do[Print[
+"F["<>ToString[tt]<>", p__] :> F["<>(tt/. topo[x__]:>"t521MZZZZp"<>StringJoin[ToString/@Flatten@DeleteCases[x,{}]])<>", Sequence @@ {p}[[{1, 2, 3, 4, 5, 6, 11, 7 ,8 ,9, 10}]]],"
+],{tt,bubbles[[;;8]]}]
+
+Do[Print[
+"F["<>ToString[tt]<>", p__] :> F["<>(tt/. topo[x__]:>"t521ZMZZZp"<>StringJoin[ToString/@Flatten@DeleteCases[x,{}]])<>", Sequence @@ {p}[[{1, 2, 3, 4, 5, 6, 11, 7 ,8 ,9, 10}]]],"
+],{tt,bubbles[[9;;16]]}]
+
+Do[Print[
+"F["<>ToString[tt]<>", p__] :> F["<>(tt/. topo[x__]:>"t521ZMZZZp"<>StringJoin[ToString/@RotateLeft[Flatten@DeleteCases[x,{}]]])<>", Sequence @@ {p}[[{2, 3, 4, 5, 1, 8, 6, 7, 9, 10, 11}]]],"
+],{tt,bubbles[[17;;20]]}]
+
+    FruleShift[topo[{{1}, {2}, {5}, {3}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[1], k[2] -> k[2] + p[1]};
+    FruleShift[topo[{{2}, {3}, {5}, {4}, {1}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[2], k[2] -> k[2] + p[2]};
+    FruleShift[topo[{{3}, {2}, {5}, {1}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[3], k[2] -> k[2] + p[3]};
+    FruleShift[topo[{{3}, {4}, {5}, {1}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[3], k[2] -> k[2] + p[3]};
+
+
+(* ::Section::Closed:: *)
+(*Drawing ints in j[...] notation*)
+
+
+MomMode = PSanalytic;
+<<"InitTwoLoopToolsFF.m";
+Get["setupfiles/Setup_phi3g.m"];
+
+
+UserDefinedISPs[topo[{{p1_},{p2_}},{{},{},{}},{{p3_},{p4_}},{{},{},{}},{}]] := Join[{prop[(k[1]+p[p4])^2],prop[(k[2]+p[p1])^2]},{dot[k[1],w[1,p[1],p[2],p[3]]],dot[k[2],w[1,p[1],p[2],p[3]]]}];
+
+
+topo2name = {
+ topo[{{1}, {2}}, {{}, {}, {}}, {{3}, {4}}, {{}, {}, {}}, {}]->t331ZZZMp1234
+};
+name2topo = topo2name /. Rule[a_,b_]:>Rule[b,a];
+
+
+jToINT[int_j]:=Module[{pows,tp,tp2,props,pows1,pows2,num,res},
+tp=int[[1]];
+tp2=tp /. name2topo;
+props=DeleteDuplicates[MakePropagators[tp2]];
+pows=int[[2;;]] /. j->List;
+pows1=pows[[1;;Length[props]]];
+pows2=pows[[Length[props]+1;;]];
+num=Times@@(Select[UserDefinedISPs[tp2],FreeQ[#,w]&]^(-pows2));
+res=INT[ToDotProducts[num],pows1,tp2];
+Return[res];
+];
+
+
+j[t331ZZZMp1234,1,1,1,1,1,1,0,0,0]/. int_j:>jToINT[int] // SquashTopology // SymbolForm
+
+
+(* ::Section::Closed:: *)
+(*Spurious zeroes in when processing DiagramNumerators*)
+
+
+Quit[];
+
+
+<<"InitTwoLoopToolsFF.m"
+<<"setupfiles/Setup_H3g.m"
+
+
+(* ::Text:: *)
+(*Sometimes, SortLoopNumerator does not recognise that the coefficient of a paritcular loop monomial is zero.*)
+(*This happens when the coefficient is a really complicated cancellation that hasn't been simplified to 0.*)
+
+
+(*monomialbasis = <<"helicityamplitudes/H3g/monomialbasis.m";
+mockrules = <<"helicityamplitudes/H3g/mockrules.m";*)
+num = <<"helicityamplitudes/H3g/num.m";
+
+
+{loopvars, monomialbasis} = GetVarsAndMonoms[num[[11]]]
+mockrules =Table[Rule[monomialbasis[[i]],mon[i]], {i,Length[monomialbasis]}];
+FreeQ[num[[6;;8]] /. mockrules, k]
+
+
+num[[8]]+num[[11]]
+
+
+(* ::Text:: *)
+(*We can check if the coefficient is indeed spurious. We multiply each loop monomial by some random flag and then evaluate the coefficient numerically to see if it's really zero.*)
+(*If it is, we use GetVarsAndMonoms to extract that loop monomial.*)
+(*The use of the flag is necessary, because otherwise GetVarsAndMonoms will just simplify this term and say there were no loop monomials to begin with.*)
+(*But we want the output to be an extra rule that we can apply to num in SLN.*)
+
+
+CheckSpuriousMonoms[expr_]:= Module[{tmp,vars,rules,spurious},
+tmp = Select[expr, !FreeQ[#, k] &];
+vars = Select[Variables[tmp], !FreeQ[#,k] &];
+rules = RuleDelayed[#,c[RandomInteger[{9,99999}]]*#]&/@vars;
+Print["rules = ", rules];
+tmp = tmp /. rules /. (f:(spA|spB|spAB|s|dot))[x__]:>GetMomentumTwistorExpression[f[x],PSnumeric];
+Print[Simplify[tmp/.c[_]:>1]];
+If[Simplify[tmp/.c[_]:>1]=!=0, Print["Could not substitute all monomials into mock variables"](*;Quit[]*)];
+spurious = GetVarsAndMonoms[tmp][[2]];
+Return[Thread@Rule[spurious, 0]]
+];
+
+
+CheckSpuriousMonoms[num[[8]]+num[[11]]]
+
+
+(* ::Section::Closed:: *)
+(*Simplifying with assumptions*)
+
+
+Simplify[Log[-m2]+Log[-s]+Log[-t], s<0&&t<0]
+
+
+(* ::Section:: *)
+(*Selecting simple numerical sij's*)
+
+
+<<"InitTwoLoopToolsFF.m"
+<<"setupfiles/Setup_phi4g.m"	
+<<"setupfiles/Setup_5pt_extra.m"
+
+
+bits = 10^9;
+Do[
+expr = GetMomentumTwistorExpression[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]},PSanalytic] /. ex[1]->1 /. Table[ex[ii]->RandomPrime[{9,99}]/RandomPrime[{9,99}], {ii,2,6}];
+newbits = Total[BitLength[Numerator[#]]+BitLength[Denominator[#]]&/@expr];
+If[newbits<bits&&Cases[expr[[2;;]], 1]=={}&&Cases[expr[[2;;]], 0]=={}&&AllTrue[expr, #>0 &], Print[expr]; bits=newbits];
+,{jj,100}]
+
+
+(* ::Section:: *)
+(*trp, trm, tr5*)
+
+
+<<"InitTwoLoopToolsFF.m"
+<<"setupfiles/Setup_phi4g.m"	
+<<"setupfiles/Setup_5pt_extra.m"
+
+
+(* p1p2 = (|1>[1| + |1]<1|)*((|2>[2| + |2]<2|) = |1>[12]<2| + |1]<12>[2| *)
+(* p1p2p3p4 = |1>[12]<23>[34]<4| + |1]<12>[23]<34>[4| *)
+(* P+p1p2p3p4 = |1>[12]<23>[34]<4| *)
+(* P-p1p2p3p4 = |1]<12>[23]<34>[4| *)
+(* tr(P+,p1p2p3p4) = [12]<23>[34]<41> *)
+(* tr(P-,p1p2p3p4) = <12>[23]<34>[41] *)
+(* helicity projectors: P+ = (1+g5)/2, P- = (1-g5)/2, so that g5 = P+ - P- *)
+(* tr(g5,p1p2p3p4) = tr(P+,p1p2p3p4) - tr(P-,p1p2p3p4) = [12]<23>[34]<41> - <12>[23]<34>[41] *)
+GetMomentumTwistorExpression[trp[1,2,3,4] - spB[1,2]*spA[2,3]*spB[3,4]*spA[4,1], PSanalytic]
+GetMomentumTwistorExpression[trm[1,2,3,4] - spA[1,2]*spB[2,3]*spA[3,4]*spB[4,1], PSanalytic]
+GetMomentumTwistorExpression[tr5[1,2,3,4] - (trp[1,2,3,4]-trm[1,2,3,4]), PSanalytic]
 
 
 
