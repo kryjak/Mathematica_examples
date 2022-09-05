@@ -1420,7 +1420,7 @@ CheckSpuriousMonoms[num[[8]]+num[[11]]]
 Simplify[Log[-m2]+Log[-s]+Log[-t], s<0&&t<0]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Selecting simple numerical sij's*)
 
 
@@ -1437,7 +1437,7 @@ If[newbits<bits&&Cases[expr[[2;;]], 1]=={}&&Cases[expr[[2;;]], 0]=={}&&AllTrue[e
 ,{jj,100}]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*trp, trm, tr5*)
 
 
@@ -1457,6 +1457,254 @@ If[newbits<bits&&Cases[expr[[2;;]], 1]=={}&&Cases[expr[[2;;]], 0]=={}&&AllTrue[e
 GetMomentumTwistorExpression[trp[1,2,3,4] - spB[1,2]*spA[2,3]*spB[3,4]*spA[4,1], PSanalytic]
 GetMomentumTwistorExpression[trm[1,2,3,4] - spA[1,2]*spB[2,3]*spA[3,4]*spB[4,1], PSanalytic]
 GetMomentumTwistorExpression[tr5[1,2,3,4] - (trp[1,2,3,4]-trm[1,2,3,4]), PSanalytic]
+GetMomentumTwistorExpression[trp[1,2,3,4] - (-s[1,2]*s[2,3]), PSanalytic]
+GetMomentumTwistorExpression[trm[1,2,3,4] - (-s[1,2]*s[2,3]), PSanalytic]
+
+
+GetMomentumTwistorExpression[spAB[2,5,2]-2*dot[p[2],p[5]],PSanalytic]
+GetMomentumTwistorExpression[spAB[2,5,2]-(s[2,5]-s[5]),PSanalytic]
+
+
+<<"InitTwoLoopToolsFF.m"
+<<"setupfiles/Setup_4g.m"	
+<<"setupfiles/Setup_4pt_extra.m"
+
+
+(* https://arxiv.org/pdf/hep-th/9611127.pdf *)
+GetMomentumTwistorExpression[trm[1,2,3,4]/(spA[1,2]*spA[2,3]*spA[3,4]*spA[4,1]),PSanalytic]
+(* https://arxiv.org/pdf/0810.2964.pdf *)
+GetMomentumTwistorExpression[spB[1,2]*spB[3,4]/(spA[1,2]*spA[3,4]), PSanalytic]
+GetMomentumTwistorExpression[-s[1,2]*s[2,3]/(spA[1,2]*spA[2,3]*spA[3,4]*spA[4,1]), PSanalytic]
+GetMomentumTwistorExpression[-s[1,2]*s[2,3]-trm[1,2,3,4], PSanalytic]
+
+
+GetMomentumTwistorExpression[spAB[1,2,3]*spAB[3,2,1] - trm[1,2,3,2], PSanalytic]
+GetMomentumTwistorExpression[trm[1,2,3,2] - (2*spAB[1,2,1]*dot[p[2],p[3]]-s[1,3]*dot[p[2],p[2]]), PSanalytic]
+(* for massive particles, we cannot make the spAB <-> trm swap, but the RHS still holds *)
+GetMomentumTwistorExpression[spAB[1,5,3]*spAB[3,5,1] - (2*spAB[1,5,1]*dot[p[5],p[3]]-s[1,3]*dot[p[5],p[5]]), PSanalytic]
+
+
+<<"InitTwoLoopToolsFF.m"
+<<"setupfiles/Setup_phi3g.m"
+<<"setupfiles/Setup_4pt_extra.m"
+
+
+(*vars = Variables[A2cc /. {MyLog[x_,y_]->Log[x/y], MyDiLog[s_,t_]->PolyLog[2,1-s/t]}][[;;-5]] /. {mu->1, delta->0};*)
+vars = {Log[-(1/s[4])],Log[s[1,2]/s[4]],Log[s[2,3]/s[4]],Log[s[1,3]/s[4]],Log[s[2,4]/s[1,4]],Log[s[1,4]/s[3,4]],Log[s[3,4]/s[2,4]],PolyLog[2,1-s[4]/s[1,4]],PolyLog[2,1-s[4]/s[2,4]],PolyLog[2,1-s[4]/s[3,4]]}
+(*vars = Insert[vars,{Log[s[1,2]/s[4]],Log[s[2,3]/s[4]],Log[s[1,3]/s[4]]},2] // Flatten*)
+varslogs4 = Simplify@GetMomentumTwistorExpression[vars[[1]], PSanalytic] /. Log[x_]->x;
+varslogs = Simplify@GetMomentumTwistorExpression[vars[[2;;7]], PSanalytic] /. Log[x_]->x;
+varsdilogs = Simplify@GetMomentumTwistorExpression[vars[[8;;10]], PSanalytic] /. PolyLog[2,x_]->x;
+
+
+Reduce[varslogs4>0&&varslogs>0&&varsdilogs<1,{ex[1],ex[2],ex[5]}]
+newpoint = {ex[1]->-1, ex[2]->3, ex[5]->6}
+
+
+vars
+GetMomentumTwistorExpression[vars,PSanalytic] /. newpoint // N
+
+
+invariants = {s12, s15, s23, s34, s45};
+rules = {p1->p5, p2->p1, p3->p2, p4->p3, p5->p4} /. Rule[a_,b_]:>Rule[ToExpression[StringDrop[ToString[a],1]],ToExpression[StringDrop[ToString[b],1]]]
+digits = IntegerDigits[ToExpression[StringDrop[ToString/@invariants, 1]]] /. rules /. x_Integer:>ToString[x]
+ToExpression/@(StringJoin["s", #]&/@StringJoin/@Sort/@%)
+
+
+(* ::Section:: *)
+(*DEs, alphabet and symbol*)
+
+
+(* ::Subsection::Closed:: *)
+(*Finding the alphabet*)
+
+
+(* ::Text:: *)
+(*First, obtain the differential equation matrices for all relevant families using, e.g. packages/finiteflow-mathtools/examples/differential_equations/differential_equations.wl*)
+(*For each family, there will be one matrix for each invariant (here: {s12, s23, s4}).*)
+(*Then, load all the DE matrices, Flatten and Together to bring everything under a common denominator.*)
+(*Select denominator factors (FactorList) - they will correspond to the letters of the alphabet.*)
+(*If there are no square roots, this will suffice to get the alphabet, otherwise we have to be more careful.*)
+(*letters = {s12,s23,s4,s12+s23,s12-s4,s23-s4,s12+s23-s4,-s23+s4,-s12+s4} - 9 letters selected, but we can see the last two are superfluous.*)
+(*The letters need to be linearly independent:*)
+(*Sum[c[i]*dLog[w[i]],  {i, Length[letters]}]= 0   <=>  c[i]=0  for all c[i].*)
+(*Now, df[x,y] = D[f[x,y],x] dx + D[f[x,y],y] dy   , where d is the differential, D is the normal derivative. In this case:*)
+(*dLog[w(s12,s23,s4)] = 1/w*dw(s12,s23,s4) = 1/w*(Dw/d(s12) + Dw/d(s23) + Dw/d(s4)).*)
+(*This gives 3 separate equations, one for each invariant.*)
+(*It is not enough to solve the system of these 3 equations just as it is, because it will consider c[i] as functions of {s12, s23, s4}, whereas c[i] can have any numerical value.*)
+(*We therefore need to sample the system on some numerical points. Here, 5 samples is enough.*)
+
+
+letters = {s12,s23,s4,s12+s23,s12-s4,s23-s4,s12+s23-s4,-s23+s4,-s12+s4};
+(*letters = letters[[;;7]]*)
+system = {
+Sum[c[ii]/letters[[ii]]*D[letters[[ii]], s12], {ii,Length[letters]}]==0, 
+Sum[c[ii]/letters[[ii]]*D[letters[[ii]], s23], {ii,Length[letters]}]==0,
+Sum[c[ii]/letters[[ii]]*D[letters[[ii]], s4], {ii,Length[letters]}]==0
+};
+
+Solve[
+Flatten@Table[system /. Thread[{s12,s23,s4}->GetMomentumTwistorExpression[{s[1,2],s[2,3],s[4]}, PSanalytic] /. Thread[{ex[1],ex[2],ex[5]}:>RandomInteger[{9,999}]/1000]], {ii,5}],
+c/@Range[Length[letters]]]
+
+
+(* ::Text:: *)
+(*We can see that the last two letters are indeed eliminated. If we repeat the above Solve with letters = letters[[;;7]], no solutions will be found, which means that the first 7 letters are independent.*)
+
+
+letters = letters[[;;7]]
+
+
+(* ::Text:: *)
+(*In general, however, this alphabet may not be enough, because we obtained it by looking at DEs of families in their 'main' permutations, e.g. 1234 for ZZZM, 1423 for ZMZZ, etc.*)
+(*The alphabet needs to be closed under all possible permutations of external legs.*)
+(*In this case, it is already closed, but let's see how we would extend if it wasn't.*)
+(*We need to permute the massless {1,2,3} legs and keep the massive leg {4} fixed.*)
+(*We generate all permutations of the 7 letters above and again check for their linear independence.*)
+
+
+rules = Thread@Rule[{1,2,3},#]&/@Permutations[{1,2,3}];
+newletters = (letters /. {s12->s[1,2],s23->s[2,3],s4->s[4]} /. #)&/@ rules /. s[x_,y_]:>s[y,x] /; x>y /. s[1,3]->s[4]-s[1,2]-s[2,3] // Flatten // DeleteDuplicates;
+newletters = newletters /. {s[1,2]->s12,s[2,3]->s23,s[4]->s4}
+
+(*newletters = newletters[[;;7]]*)
+
+system = {
+Sum[c[ii]/newletters[[ii]]*D[newletters[[ii]], s12], {ii,Length[newletters]}]==0, 
+Sum[c[ii]/newletters[[ii]]*D[newletters[[ii]], s23], {ii,Length[newletters]}]==0,
+Sum[c[ii]/newletters[[ii]]*D[newletters[[ii]], s4], {ii,Length[newletters]}]==0
+} 
+
+Solve[
+Flatten@Table[system /. Thread[{s12,s23,s4}->GetMomentumTwistorExpression[{s[1,2],s[2,3],s[4]}, PSanalytic] /. Thread[{ex[1],ex[2],ex[5]}:>RandomInteger[{9,999}]/1000]], {ii,5}],
+c/@Range[Length[newletters]]]
+
+
+(* ::Text:: *)
+(*The {1,2,3} permutations generate 13 letters, but again, only 7 of them are independent and they are the same as the original ones:*)
+
+
+newletters = newletters[[;;7]];
+ContainsExactly[newletters, letters]
+
+
+(* ::Text:: *)
+(*However, in a general case, this wouldn't be true and the permutation procedure would increase the number of letters.*)
+
+
+newletters
+
+
+(* ::Subsection:: *)
+(*Finding Atilde*)
+
+
+(* ::Text:: *)
+(*Say we have only three letters, dependent on 2 invariants:*)
+
+
+letters = {s12,s23,s12-s23};
+
+
+(* ::Text:: *)
+(*We're trying to find Atilde, but we don't know what a[i] are:*)
+
+
+(*Atilde = Sum[a[i]*Log[letters[[i]]], {i, Length[letters]}]*)
+(*As12 = Sum[a[i]*D[Log[letters[[i]]], s12], {i, Length[letters]}]*)
+(*As23 = Sum[a[i]*D[Log[letters[[i]]], s23], {i, Length[letters]}]*)
+
+
+(* ::Text:: *)
+(*These matrices wrt to each invariant can be obtained by first differentiating and then IBP-reducing the resulting expressions back onto the same set of MIs.*)
+(*In practice, this is done in differential_equations.wl with a combination of LiteRed and FiniteFlow.*)
+
+
+As12 = {{1/s12-1/(s12-s23),3/(s12-s23)},{-(2/s12),3/s12-7/(s12-s23)}};
+As23 = {{1/(s12-s23)+4/s23,-(3/(s12-s23))+5/s23},{3/s23,7/(s12-s23)-3/s23}};
+
+
+(* ::Text:: *)
+(*Now we're going to perform the linear fit by numerically sampling equations for each entry of a[k] separately.*)
+
+
+sols = {};
+Do[
+(* system for each entry of a[k] separately *)
+system = 
+{
+As12[[i,j]] == Sum[a[k,i,j]*D[Log[letters[[k]]], s12], {k, Length[letters]}],
+As23[[i,j]] == Sum[a[k,i,j]*D[Log[letters[[k]]], s23], {k, Length[letters]}]
+};
+
+(* solve each such system by numerically sampling both sides at random points *)
+(* may have to experiment with how many times we need to sample the system *)
+sol = Solve[Flatten@Table[system /. Thread[{s12,s23}->GetMomentumTwistorExpression[{s[1,2],s[2,3]}, PSanalytic] /. Thread[{ex[1],ex[2],ex[5]}:>RandomInteger[{9,999}]/1000]], {ii,Length[letters]}]];
+AppendTo[sols, sol[[1]]];
+,{i, Length[As23]}, {j,Length[As23]}]
+
+
+(* put the matrices back together *)
+sols;
+mat = Table[a[k,i,j], {k, Length[letters]}, {i, Length[As12]}, {j,Length[As12]}] /. Flatten[sols];
+(* construct Atilde *)
+Atilde = Sum[mat[[i]]*Log[letters[[i]]], {i, Length[letters]}];
+
+
+(* ::Text:: *)
+(*Perform sanity checks:*)
+
+
+DeleteDuplicates@Flatten@Simplify[D[Atilde, s12]-As12]=={0}
+DeleteDuplicates@Flatten@Simplify[D[Atilde, s23]-As23]=={0}
+
+
+D[PolyLog[2,x], x] - D[Log[x],x]*PolyLog[1,x]
+
+
+D[PolyLog[2,x/y], x]+D[PolyLog[2,x/y], y] - (D[Log[x],x]-D[Log[y],y])*PolyLog[1,x/y] // Simplify
+
+
+D[PolyLog[2,x+y^2], x]+D[PolyLog[2,x+y^2], y]
+D[Log[x+y^2],x]*PolyLog[1,x+y^2]
+
+
+Integrate[1/(x+y^2), x]
+Integrate[2y/(x+y^2), y]
+
+
+(* ::Subsection:: *)
+(*Table with a variable number of iterators*)
+
+
+tab[n_] := Table[f[a,b,...], {a, 3}, {b, 3}, ...]
+f[##] &@@ ii/@Range[5]
+{##, 3} &/@ ii/@Range[5]
+tab[n_] := Table[f[##] &@@ ii/@Range[5], {##, 3} &/@ ii/@Range[5]]
+tab[1]
+
+
+
+
+
+(* ::Section:: *)
+(*Selecting numerical sij values*)
+
+
+<<"InitTwoLoopToolsFF.m"
+<<"setupfiles/Setup_phi4g.m"
+
+
+RationalQ[x_]:=(Head[x]===Rational||IntegerQ[x]);
+
+
+Do[
+rnd=Join[RandomInteger[{9,99}, 5], {RandomPrime[{9,99}]}];
+eqs = Thread[rnd- GetMomentumTwistorExpression[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]},PSanalytic] == 0];
+sol = Solve[eqs,ex/@Range[6]];
+(* select sij such that the corresponding ex[i] are real and positive *)
+If[AllTrue[Flatten[sol][[;;,2]], RationalQ[#]&&#>0 & ], Print[rnd]]
+,{ii,1000}]
 
 
 
