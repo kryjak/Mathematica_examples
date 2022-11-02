@@ -1,9 +1,5 @@
 (* ::Package:: *)
 
-(* ::Input:: *)
-(* *)
-
-
 (* ::Section::Closed:: *)
 (*Slot #*)
 
@@ -600,6 +596,13 @@ FFGraphOutput[graph, indep];
 FFReconstructFunction[graph, {x, y}]
 
 
+{allCoeffs} -> selectedCoeffs
+
+
+(* ::Subsection::Closed:: *)
+(*FFAlgDenseSolver*)
+
+
 eqs = {x + 2 y + 3 z == 0, 3 x + 4 y + 5 z == 0, 6 x + 7 y + 8 z == 0};
 (*eqs = {x + 2 y + 3 z + 7 w== 4, 3 x + 4 y + 5 z +4w == 6, -19 x + 7 y + 8 z + 3w == 9, 12 x + 5 y + 8z + 11w == 0};*)
 vars = Variables[eqs/.a_==b_:>a]
@@ -982,7 +985,10 @@ tensorbasis//Length
 <<FiniteFlow`
 
 
-(* ::Subsection::Closed:: *)
+RandomInteger[{9999,99999999},2]
+
+
+(* ::Subsection:: *)
 (*A general example*)
 
 
@@ -991,24 +997,28 @@ FFAlgRatFunEval[graphXY,evalXY,{in},{x,y},{x^4+y^8}];
 FFGraphOutput[graphXY,evalXY];
 
 (* {x,y}->{a^2,b^2} *)
-FFNewGraph[graphAB,in,{a,b}];
-FFAlgRatFunEval[graphAB,evalAB,{in},{a,b},{a^2,b^2}];
+FFNewGraph[graphAB,in,{AA,b}];
+FFAlgRatFunEval[graphAB,evalAB,{in},{AA,b},{AA^2,b^2}];
 FFAlgSimpleSubgraph[graphAB,subnode,{evalAB},graphXY];
 
 FFGraphOutput[graphAB,subnode];
-FFReconstructFunction[graphAB,{a,b}]
+FFReconstructFunction[graphAB,{AA,b}]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*sij -> MTs example*)
 
 
-process = "H3g";
+GetMomentumTwistorExpression[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]}, PSanalytic] /. {ex[1] -> 1, ex[2] -> 2/95, ex[3] -> 4/81, ex[4] -> 1/71, ex[5] -> 13/150, ex[6] -> 13/132, ex[7] -> 2/89, ex[8] -> 7/117, ex[9] -> 3/62}
+Thread[{s12,s23,s34,s45,s15,s5}->%]
+
+
+process = "H4g";
 psmode = "PSanalytic";
 
 
 << "InitTwoLoopToolsFF.m"
-<<"~/gitrepos/myfiniteflowexamples/setupfiles/Setup_H3g.m"
+<<"~/gitrepos/myfiniteflowexamples/setupfiles/Setup_H4g.m"
 Get["~/gitrepos/myfiniteflowexamples/amplitudes/GlobalMapProcessSetup.m"];
 
 
@@ -1147,8 +1157,9 @@ FFDumpDegrees[graph,"degfile.m"];
 (* #vars in + output node length + (maxdegnum + maxdegdenom + (maxdegnum in var i + mindegnum in var i + maxdegdenom in var i + maxdegdenom in var i)*#vars in)*output node length *)
 
 
-degs = Import["degfile.m","Integer64"];
-degs
+(*degile = "degfile.m";*)
+degfile = "/home/jkrys/gitrepos/myfiniteflowexamples/amplitudes/2q2aW/degrees_amp_spfn_1L_2q2aW_d12__O1_OGAGAqkm2qlm4WQqlp2_Ncp1_dsm2p1_+m++1.m.fflow";
+degs = Import[degfile,"Integer64"];
 nvars = degs[[1]];
 parsout = degs[[2]];
 stepsize = 2+4*nvars;
@@ -1158,10 +1169,13 @@ maxdegsnum = Association@Table[Rule[vars[[i]], Table[degs[[5+4*(i-1)+stepsize*j]
 maxdegsdenom = Association@Table[Rule[vars[[i]], Table[degs[[7+4*(i-1)+stepsize*j]],{j,0,parsout-1}]],{i,nvars}];
 
 
+vars = ex/@Range[5];
+
+
 Print["totaldegsnum = ", totaldegsnum]
 Print["totaldegsdenom = ", totaldegsdenom]
-Print["maxdegsnum = ", maxdegsnum]
-Print["maxdegsdenom = ", maxdegsdenom]
+(*Print["maxdegsnum = ", maxdegsnum]*)
+(*Print["maxdegsdenom = ", maxdegsdenom]*)
 Print["Max num total degree = ", Max@totaldegsnum]
 Print["Max denom total degree = ", Max@totaldegsdenom]
 Print["Max num degree in ", #,": ", Max@maxdegsnum[#]] &/@ vars;
@@ -1191,7 +1205,7 @@ Do[weight[fams[[-ii]]]=ii, {ii,Length@fams}]
 SortBy[{j[t322ZZZMp2314,0,2,0,1,1,1,1,0,0],j[t331ZZMZp1243,2,1,0,0,1,1,1,0,0],j[t331ZZMZp1342,2,1,0,0,1,1,1,0,0]}, weight[#/.j[t_,x__]:>t] &]
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Testing Frules*)
 
 
@@ -1327,6 +1341,84 @@ Do[Print[
     FruleShift[topo[{{3}, {4}, {5}, {1}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[3], k[2] -> k[2] + p[3]};
 
 
+(* ::Subsection:: *)
+(*2q2aW*)
+
+
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_}},{{},{},{}},{{p4_},{p5_}},{{},{},{}},{}]] := {prop[(k[1]+p[p5])^2],prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2]};
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_},{p4_}},{{},{},{}},{{p5_}},{{},{},{}},{}]] := {prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2],prop[(k[2]+p[p1]+p[p2]+p[p3])^2]};
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_},{p4_},{p5_}},{{},{},{}},{},{{},{},{}},{}]] := {prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2],prop[(k[2]+p[p1]+p[p2]+p[p3])^2],prop[(k[2]-p[p5])^2]};
+
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_}},{{},{},{}},{{p4_}},{{},{},{}},{{p5_}}]] := {prop[(k[1]+k[2]-p[p1])^2],prop[(k[1]+k[2]-p[p1]-p[p2])^2],prop[(k[1]+k[2]-p[p1]-p[p2]-p[p3])^2]};
+UserDefinedISPs[topo[{{p1_},{p2_}},{{},{},{}},{{p4_},{p5_}},{{},{},{}},{{p3_}}]] := {prop[(k[1]+p[p5])^2],prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2]};
+
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_}},{{},{},{},{}},{{p4_},{p5_}}]] := {prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2],prop[(k[1]+p[p5])^2],prop[(k[1]+k[2])^2]};
+UserDefinedISPs[topo[{{p1_},{p2_},{p3_},{p4_}},{{},{},{},{}},{{p5_}}]] := {prop[(k[2]+p[p1])^2],prop[(k[2]+p[p1]+p[p2])^2],prop[(k[2]+p[p1]+p[p2]+p[p3])^2],prop[(k[1]+k[2])^2]};
+
+
+(* apart from the bubbles needed for H4g, we also need the following: *)
+
+
+bubbles = {topo[{{5}, {4}, {3}, {1}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}], (* t611pijklm->t521MZZZZpijklm *) \
+topo[{{5}, {4}, {2}, {1}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],            (* {1, 2, 3, 4, 5, 6, 11, 7 ,8 ,9, 10} *) \
+topo[{{5}, {3}, {4}, {2}, {1}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}], \
+topo[{{5}, {3}, {1}, {2}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}], \
+topo[{{5}, {2}, {1}, {3}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}], \
+topo[{{5}, {1}, {2}, {4}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}], \
+
+topo[{{4}, {5}, {3}, {1}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}], (* t611pijklm->t521MZZZZpijklm *) \
+topo[{{4}, {5}, {2}, {1}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}], (* {1, 2, 3, 4, 5, 6, 11, 7 ,8 ,9, 10} *) \
+topo[{{3}, {5}, {4}, {2}, {1}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}], \
+topo[{{3}, {5}, {1}, {2}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}], \
+topo[{{2}, {5}, {4}, {3}, {1}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}], \
+topo[{{1}, {5}, {3}, {4}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}], \
+
+topo[{{2}, {1}, {5}, {3}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],  (* t611pijklm->t521ZMZZZpjklmi *) \
+topo[{{1}, {3}, {5}, {4}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}],  (* {2, 3, 4, 5, 1, 8, 6, 7, 9, 10, 11} *) \
+topo[{{1}, {2}, {5}, {4}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]}; (* these need an FruleShift *)
+
+
+Do[
+propsbub = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@bubble, FreeQ[#,w] &] /. p[5]->-p[1]-p[2]-p[3]-p[4] // DeleteDuplicates;
+hexatri = bubble /. topo[{{5}, {i_}, {j_}, {k_}, {l_}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}] -> topo[{{5}, {i}, {j}, {k}}, {{}, {}, {}}, {{l}}, {{}, {}, {}}, {}];
+propsht = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@hexatri, FreeQ[#,w] &] /. p[5]->-p[1]-p[2]-p[3]-p[4] (* /. {k[1] -> k[1] - p[3], k[2] -> k[2] + p[3]} *);
+Print[propsbub[[{1, 2, 3, 4, 5, 6, 11, 7 ,8 ,9, 10}]]===propsht];
+,{bubble,bubbles[[;;6]]}]
+
+
+Do[
+propsbub = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@bubble, FreeQ[#,w] &] /. p[5]->-p[1]-p[2]-p[3]-p[4] // DeleteDuplicates;
+hexatri = bubble /. topo[{{i_}, {j_}, {5}, {k_}, {l_}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}] -> topo[{{i}, {5}, {j}, {k}}, {{}, {}, {}}, {{l}}, {{}, {}, {}}, {}];
+propsht = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@hexatri, FreeQ[#,w] &] /. p[5]->-p[1]-p[2]-p[3]-p[4] (* /. {k[1] -> k[1] - p[3], k[2] -> k[2] + p[3]} *);
+Print[propsbub[[{1, 2, 3, 4, 5, 6, 11, 7 ,8 ,9, 10}]]===propsht];
+,{bubble,bubbles[[7;;12]]}]
+
+
+Do[
+propsbub = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@bubble, FreeQ[#,w] &] /. p[5]->-p[1]-p[2]-p[3]-p[4] // DeleteDuplicates;
+hexatri = bubble /. topo[{{i_}, {j_}, {5}, {k_}, {l_}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}] -> topo[{{j}, {5}, {k}, {l}}, {{}, {}, {}}, {{i}}, {{}, {}, {}}, {}];
+propsht = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@hexatri, FreeQ[#,w] &] /. p[5]->-p[1]-p[2]-p[3]-p[4] /. {k[1] -> k[1] - p[1], k[2] -> k[2] + p[1]};
+Print[propsbub[[{2, 3, 4, 5, 1, 8, 6, 7, 9, 10, 11}]]===propsht];
+,{bubble,bubbles[[13;;15]]}]
+
+
+Do[Print[
+"F["<>ToString[tt]<>", p__] :> F["<>(tt/. topo[x__]:>"t521MZZZZp"<>StringJoin[ToString/@Flatten@DeleteCases[x,{}]])<>", Sequence @@ {p}[[{1, 2, 3, 4, 5, 6, 11, 7 ,8 ,9, 10}]]],"
+],{tt,bubbles[[;;6]]}]
+
+Do[Print[
+"F["<>ToString[tt]<>", p__] :> F["<>(tt/. topo[x__]:>"t521ZMZZZp"<>StringJoin[ToString/@Flatten@DeleteCases[x,{}]])<>", Sequence @@ {p}[[{1, 2, 3, 4, 5, 6, 11, 7 ,8 ,9, 10}]]],"
+],{tt,bubbles[[7;;12]]}]
+
+Do[Print[
+"F["<>ToString[tt]<>", p__] :> F["<>(tt/. topo[x__]:>"t521ZMZZZp"<>StringJoin[ToString/@RotateLeft[Flatten@DeleteCases[x,{}]]])<>", Sequence @@ {p}[[{2, 3, 4, 5, 1, 8, 6, 7, 9, 10, 11}]]],"
+],{tt,bubbles[[13;;15]]}]
+
+    FruleShift[topo[{{2}, {1}, {5}, {3}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[2], k[2] -> k[2] + p[2]};
+    FruleShift[topo[{{1}, {3}, {5}, {4}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[1], k[2] -> k[2] + p[1]};
+    FruleShift[topo[{{1}, {2}, {5}, {4}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[1], k[2] -> k[2] + p[1]};
+
+
 (* ::Section::Closed:: *)
 (*Drawing ints in j[...] notation*)
 
@@ -1362,7 +1454,7 @@ j[t331ZZZMp1234,1,1,1,1,1,1,0,0,0]/. int_j:>jToINT[int] // SquashTopology // Sym
 
 
 (* ::Section::Closed:: *)
-(*Spurious zeroes in when processing DiagramNumerators*)
+(*Spurious zeroes in DiagramNumerators*)
 
 
 Quit[];
@@ -1457,8 +1549,8 @@ If[newbits<bits&&Cases[expr[[2;;]], 1]=={}&&Cases[expr[[2;;]], 0]=={}&&AllTrue[e
 GetMomentumTwistorExpression[trp[1,2,3,4] - spB[1,2]*spA[2,3]*spB[3,4]*spA[4,1], PSanalytic]
 GetMomentumTwistorExpression[trm[1,2,3,4] - spA[1,2]*spB[2,3]*spA[3,4]*spB[4,1], PSanalytic]
 GetMomentumTwistorExpression[tr5[1,2,3,4] - (trp[1,2,3,4]-trm[1,2,3,4]), PSanalytic]
-GetMomentumTwistorExpression[trp[1,2,3,4] - (-s[1,2]*s[2,3]), PSanalytic]
-GetMomentumTwistorExpression[trm[1,2,3,4] - (-s[1,2]*s[2,3]), PSanalytic]
+GetMomentumTwistorExpression[trp[1,2,3,4]*trm[1,2,3,4] - s[1,2]*s[2,3]*s[3,4]*s[4,1], PSanalytic]
+GetMomentumTwistorExpression[trm[1,4,2,3]/trp[2,4,3,1], PSanalytic]
 
 
 GetMomentumTwistorExpression[spAB[2,5,2]-2*dot[p[2],p[5]],PSanalytic]
@@ -1511,7 +1603,7 @@ digits = IntegerDigits[ToExpression[StringDrop[ToString/@invariants, 1]]] /. rul
 ToExpression/@(StringJoin["s", #]&/@StringJoin/@Sort/@%)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*DEs, alphabet and symbol*)
 
 
@@ -1687,24 +1779,175 @@ tab[1]
 
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Selecting numerical sij values*)
 
 
+process = "phi4g";
+psmode = "PSanalytic"
+
+
 <<"InitTwoLoopToolsFF.m"
-<<"setupfiles/Setup_phi4g.m"
+<<"amplitudes/GlobalMapProcessSetup.m";
 
 
 RationalQ[x_]:=(Head[x]===Rational||IntegerQ[x]);
 
 
+alphabet = <<"amplitudes/phi4g/alphabet.m";
+roots = <<"amplitudes/phi4g/roots.m";
+
+
+alphabet /. roots // Variables
+
+
+myalphabet = alphabet /. roots /. {p1s->s5,s12->s25,s15->s15,s45->s14}/.{s13->s45-s12-s23, s14->s23-s15-s45+s5, s24->s15-s23-s34, s25->-s12-s15+s34+s5, s35->s12-s34-s45+s5};
+myalphabet = myalphabet /. {s12->s[1,2],s23->s[2,3],s34->s[3,4],s45->s[4,5],s15->s[1,5],s5->s[5]};
+myalphabet // Variables
+
+
+(*Export["myalphabet.m",myalphabet];*)
+
+
+(*denoms = GetMomentumTwistorExpression[Union[coeffansatz, myalphabet], PSanalytic];*)
+denoms = Union[coeffansatz, myalphabet];
+
+
+sqroots = Select[denoms, !FreeQ[#, Sqrt[__]] &] /. Sqrt[x__]->sqrt[x] // Variables;
+sqroots = Select[sqroots, Head[#]==sqrt &];
+sqroots = sqroots /. sqrt[x_]:>x // Simplify;
+
+
+<<FiniteFlow`
+FFRatMod[-4,FFPrimeNo[0]]
+
+
+sijs = {s12->1,s23->1/2,s34->-7,s45->39/17,s15->-(29/3),s5->-(214/51)};
+sijs2 = {s[1,2]->1,s[2,3]->1/2,s[3,4]->-7,s[4,5]->39/17,s[1,5]->-(29/3),s[5]->-(214/51)};
+list = {{1,1/2,-7,39/17,-29/3,-214/51}};
+A;
+PSptexp = {ex[1]->28/15,ex[2]->17/10,ex[3]->31/4,ex[4]->73/74,ex[5]->13/88,ex[6]->25/27};
+PSptold = {ex[1] -> 1, ex[2] -> 2/95, ex[3] -> 4/81, ex[4] -> 1/71, ex[5] -> 13/150, ex[6] -> 13/132, ex[7] -> 2/89, ex[8] -> 7/117, ex[9] -> 3/62};
+
+
+denomnum = GetMomentumTwistorExpression[denoms, PSanalytic];
+
+
+(* 34125 *)
+denomperm = denoms /. {1->3, 2->4, 3->1, 4->2} /. (s[i_,j_]:>s[j,i] /; i>j);
+denomperm = denomperm /. {s[2,5]->s[1,3]+s[1,4]+s[3,4], s[3,5]->s[1,2]+s[1,4]+s[2,4]} /. {s[1,3]->(s[4,5]-s[1,2]-s[2,3]), s[1,4]->(s[2,3]-s[1,5]-s[4,5]+s[5]), s[2,4]->(s[1,5]-s[2,3]-s[3,4])};
+denompermnum = GetMomentumTwistorExpression[denomperm, PSanalytic];
+
+
+denompermnum/. PSpt
+denompermnum /. PSptexp
+
+
+MemberQ[denompermnum,ComplexInfinity]
+
+
+Thread@Rule[ex/@Range[6],RandomInteger[{9,99},6]/RandomInteger[{1,100}, 6]]
+GetMomentumTwistorExpression[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]},PSanalytic] /. %
+
+
+list = {}
 Do[
-rnd=Join[RandomInteger[{9,99}, 5], {RandomPrime[{9,99}]}];
+rnd = Join[RandomInteger[{9,99},4],RandomInteger[{-99,-9}, 2]]/RandomInteger[{1,100}, 6];
+rnd = RandomInteger[{9,99},6]/RandomInteger[{1,100}, 6];
 eqs = Thread[rnd- GetMomentumTwistorExpression[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]},PSanalytic] == 0];
 sol = Solve[eqs,ex/@Range[6]];
 (* select sij such that the corresponding ex[i] are real and positive *)
-If[AllTrue[Flatten[sol][[;;,2]], RationalQ[#]&&#>0 & ], Print[rnd]]
-,{ii,1000}]
+If[!MemberQ[rnd,0]&&AllTrue[Flatten[sol][[;;,2]], RationalQ[#]&&#>0 & ], AppendTo[list, rnd]]
+,{ii,10000}]
+Print[list]
 
 
+goodsijs = {};
+Do[table = Flatten@Table[s[i,j],{i,5},{j,5}] /. (s[i_,j_]:>s[j,i] /; i>j) /. (s[i_,i_]:>AAA /; i!=5) /. s[5,5]->s[5] /. {s[2,5]->s[1,3]+s[1,4]+s[3,4], s[3,5]->s[1,2]+s[1,4]+s[2,4]};
+table = table /. {s[1,3]->(s[4,5]-s[1,2]-s[2,3]), s[1,4]->(s[2,3]-s[1,5]-s[4,5]+s[5]), s[2,4]->(s[1,5]-s[2,3]-s[3,4])} // DeleteDuplicates;
+vals = table /. Thread[Rule[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]},ii]];
+Print[vals];
+If[!MemberQ[vals, 0], AppendTo[goodsijs, ii]],
+{ii,list}]
 
+
+(* 34125 *)
+{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]} /. {1->3, 2->4, 3->1, 4->2}
+GetMomentumTwistorExpression[%, PSanalytic] /. PSpt
+GetMomentumTwistorExpression[%%, PSanalytic] /. PSptold
+GetMomentumTwistorExpression[%%%, PSanalytic] /. PSptexp
+
+
+GetMomentumTwistorExpression[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]}, PSanalytic] /. PSpt
+FFRatMod[%,FFPrimeNo[0]]
+
+
+PSpt
+
+
+?FFAlgRatFunEval
+
+
+Position[denoms /. PSpt // Simplify, Sqrt[__]][[;;,1]]
+Position[denoms /. PSptold // Simplify, Sqrt[__]][[;;,1]]
+
+
+goodsijs = {{1,1/2,-7,39/17,-29/3,-214/51}};
+finalsijs = {};
+
+Do[
+rnd=ii;
+eqs = Thread[rnd- GetMomentumTwistorExpression[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]},PSanalytic] == 0];
+sol = Solve[eqs,ex/@Range[6]];
+sol = Select[sol, AllTrue[#[[;;,2]], #>0 &] &];
+vals = sqroots /. sol;
+vals2 = denoms /. sol;
+(*Print[vals2];*)
+If[FreeQ[Flatten@vals2, 0]&&FreeQ[Flatten@vals2, ComplexInfinity]&&AllTrue[Flatten[vals], #>0 &], Print["good sijs found: ", ii]; AppendTo[finalsijs, ii]],
+{ii, goodsijs}];
+
+
+(*PSpt = {ex[1] -> 1, ex[2] -> 2/95, ex[3] -> 4/81, ex[4] -> 1/71, ex[5] -> 13/150, ex[6] -> 13/132, ex[7] -> 2/89, ex[8] -> 7/117, ex[9] -> 3/62};*)
+goodmts = {};
+Do[
+rnd = Join[{1},RandomInteger[{9,99},5]/RandomInteger[{9,99},5]];
+PSpt = Thread[{ex[1],ex[2],ex[3],ex[4],ex[5],ex[6]}->rnd];
+If[AllTrue[sqroots /. PSpt // Simplify, #>0 &], AppendTo[goodmts, rnd]];
+,{ii,100000}]
+GetMomentumTwistorExpression[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]},PSanalytic] /. PSpt
+
+
+bits = 10^9;
+Do[
+PSpt = Thread[{ex[1],ex[2],ex[3],ex[4],ex[5],ex[6]}->ii];
+sijsnum = GetMomentumTwistorExpression[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]},PSanalytic] /. PSpt;
+newbits = Total[BitLength[Numerator[#]]+BitLength[Denominator[#]]&/@sijsnum];
+If[newbits<bits&&!MemberQ[sijsnum,0]&&DuplicateFreeQ[sijsnum], Print[sijsnum]; bits=newbits];
+,{ii,goodmts}]
+
+
+rnd = {1,1/2,-7,39/17,-(29/3),-(214/51)};
+eqs = Thread[rnd- GetMomentumTwistorExpression[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]},PSanalytic] == 0];
+sol = Solve[eqs,ex/@Range[6]];
+sol = Select[sol, AllTrue[#[[;;,2]], #>0 &] &]
+
+
+(* ::Subsection:: *)
+(*Constrains on s45 scattering channel*)
+
+
+(* ::Text:: *)
+(*p4+p5->p1+p2+p3 with p1^2=!=0*)
+
+
+ddot[p[i_], p[j_]] := p[i,0]*p[j,0]-Sum[p[i,k]*p[j,k],{k,3}]
+
+
+ddot[p[1],p[2]]
+
+
+ddot[p[1],p[1]] > 0
+Table[ddot[p[k],p[k]] == 0, {k,2,5}]
+
+
+ddot[p[4],p[5]]
