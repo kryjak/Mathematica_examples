@@ -603,10 +603,13 @@ FFReconstructFunction[graph, {x, y}]
 (*FFAlgDenseSolver*)
 
 
+eqs = {x + 2y - z == 7, 2x - 3y - 4z == -3, x + y + z == 0};
 eqs = {x + 2 y + 3 z == 0, 3 x + 4 y + 5 z == 0, 6 x + 7 y + 8 z == 0};
-(*eqs = {x + 2 y + 3 z + 7 w== 4, 3 x + 4 y + 5 z +4w == 6, -19 x + 7 y + 8 z + 3w == 9, 12 x + 5 y + 8z + 11w == 0};*)
 vars = Variables[eqs/.a_==b_:>a]
 Solve[eqs, vars]
+
+
+<<FiniteFlow`;
 
 
 FFNewGraph[testgraph,input,vars];
@@ -802,6 +805,10 @@ tr5 + (tr5 /. {p[1,x_]:>p[2,x], p[2,x_]:>p[1,x]}) // Simplify
 (*{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5]} // Simplify*)
 
 
+LeviCivitaTensor[2]//MatrixForm
+%//Transpose//MatrixForm
+
+
 (* ::Section::Closed:: *)
 (*Tensor decomposition of an amplitude *)
 
@@ -978,7 +985,7 @@ tensorbasis = DeleteCases[tensorbasis,0] // DeleteDuplicates;
 tensorbasis//Length
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Changing variables within FF*)
 
 
@@ -1009,8 +1016,7 @@ FFReconstructFunction[graphAB,{AA,b}]
 (*sij -> MTs example*)
 
 
-GetMomentumTwistorExpression[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]}, PSanalytic] /. {ex[1] -> 1, ex[2] -> 2/95, ex[3] -> 4/81, ex[4] -> 1/71, ex[5] -> 13/150, ex[6] -> 13/132, ex[7] -> 2/89, ex[8] -> 7/117, ex[9] -> 3/62}
-Thread[{s12,s23,s34,s45,s15,s5}->%]
+<<FiniteFlow`;
 
 
 process = "H4g";
@@ -1046,6 +1052,46 @@ FFGraphOutput[mtgraph,subnode];
 res = FFReconstructFunction[mtgraph,vvarsmt];
 exprmt = GetMomentumTwistorExpression[{(s[1,2]^4+s[4]^2)/s[2,3]},PSanalytic];
 res/exprmt // Simplify
+
+
+(* ::Subsection:: *)
+(*Note on subgraphs*)
+
+
+(* ::Text:: *)
+(*We cannot use different nodes of the same graph to define multiple subgraphs.*)
+(*For example, if we define a graphXY with node1, which we then take as a subgraph of graphAB,*)
+(*we cannot then redefine the output of graphXY to be node2 and take that as another subgraph.*)
+(*This is because the internal code would then not know how to understand graphXY when evaluating it for the purposes of two different subgraphs.*)
+
+
+FFNewGraph[graphxy,inputxy,{x,y}];
+FFAlgRatFunEval[graphxy,evalxy,{inputxy},{x,y},{x^4+y^8}];
+(*FFGraphOutput[graphxy,evalxy];*)
+
+(* {x,y}->{a^2+b,a^5+b^2} *)
+FFNewGraph[graphab,inputab,{a,b}];
+FFAlgRatFunEval[graphab,evalab,{inputab},{a,b},{a^2+b,a^5+b^2}];
+
+	FFAlgRatFunEval[graphxy,extranode,{inputxy},{x,y},{x,y}];
+	FFGraphOutput[graphxy,extranode];	
+	FFAlgSimpleSubgraph[graphab,subnode,{evalab},graphxy];
+	FFGraphOutput[graphab,subnode];
+	FFReconstructFunction[graphab,{a,b}] // Expand
+	
+Print@FFGraphOutput[graphxy,evalxy];
+Print@FFAlgSimpleSubgraph[graphab,subnode,{evalab},graphxy];
+
+FFGraphOutput[graphab,subnode];
+FFReconstructFunction[graphab,{a,b}] // Expand
+
+FFDeleteGraph[graphab]
+FFDeleteGraph[graphxy]
+
+
+(* ::Text:: *)
+(*We need to create another graph instead (the indented code above).*)
+(*Or perhaps there is a cleverer way, like copying the graph, but I'm not aware of anything of that sort.*)
 
 
 (* ::Section::Closed:: *)
@@ -1114,12 +1160,12 @@ expr = Expand[Numerator[expr]/norm]/Expand[Denominator[expr]/norm] /. x_Rational
 (*Factor*)
 
 
-(* factor a polynomial *)
+(* factorise a polynomial *)
 Factor[x^10-1]
 (* its coefficients are taken modulo a number: *)
 Factor[x^10-1,Modulus->7]
 (* what's going on here? *)
-Factor[11+3x,Modulus->7]//Expand
+Factor[11+3x,Modulus->7]
 
 
 (* ::Section::Closed:: *)
@@ -1205,7 +1251,7 @@ Do[weight[fams[[-ii]]]=ii, {ii,Length@fams}]
 SortBy[{j[t322ZZZMp2314,0,2,0,1,1,1,1,0,0],j[t331ZZMZp1243,2,1,0,0,1,1,1,0,0],j[t331ZZMZp1342,2,1,0,0,1,1,1,0,0]}, weight[#/.j[t_,x__]:>t] &]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Testing Frules*)
 
 
@@ -1234,11 +1280,11 @@ UserDefinedISPs[topo[{{p1_},{p2_}},{{},{},{}},{{p3_}},{{},{},{}},{{p4_}}]] := Jo
 (* remember to impose momentum conservation and a possible FruleShift *)
 
 
-bubble = topo[{{1}, {4}, {2}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}];
+bubble = topo[{{1}, {3}, {4}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}];
 propsbub = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@bubble, FreeQ[#,w] &] /. p[4]->-p[1]-p[2]-p[3] // DeleteDuplicates
-pentatri = topo[{{1}, {4}, {2}}, {{}, {}, {}}, {{3}}, {{}, {}, {}}, {}];
+pentatri = topo[{{4},{3},{1}},{{},{},{}},{{2}},{{},{},{}},{}];
 propspt = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@pentatri, FreeQ[#,w] &] /. p[4]->-p[1]-p[2]-p[3]  (*/. {k[1] -> k[1] - p[1], k[2] -> k[2] + p[1]} *)
-propsbub[[{1, 2, 3, 4, 5, 9, 6, 7, 8}]]===propspt
+propsbub[[{2, 3, 4, 1, 7, 5, 6, 8, 9}]]===propspt
 
 
 bubbles = {
@@ -1341,7 +1387,7 @@ Do[Print[
     FruleShift[topo[{{3}, {4}, {5}, {1}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[3], k[2] -> k[2] + p[3]};
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*2q2aW*)
 
 
@@ -1519,6 +1565,9 @@ Simplify[Log[-m2]+Log[-s]+Log[-t], s<0&&t<0]
 <<"InitTwoLoopToolsFF.m"
 <<"setupfiles/Setup_phi4g.m"	
 <<"setupfiles/Setup_5pt_extra.m"
+
+
+fromMT
 
 
 bits = 10^9;
@@ -1825,7 +1874,6 @@ FFRatMod[-4,FFPrimeNo[0]]
 sijs = {s12->1,s23->1/2,s34->-7,s45->39/17,s15->-(29/3),s5->-(214/51)};
 sijs2 = {s[1,2]->1,s[2,3]->1/2,s[3,4]->-7,s[4,5]->39/17,s[1,5]->-(29/3),s[5]->-(214/51)};
 list = {{1,1/2,-7,39/17,-29/3,-214/51}};
-A;
 PSptexp = {ex[1]->28/15,ex[2]->17/10,ex[3]->31/4,ex[4]->73/74,ex[5]->13/88,ex[6]->25/27};
 PSptold = {ex[1] -> 1, ex[2] -> 2/95, ex[3] -> 4/81, ex[4] -> 1/71, ex[5] -> 13/150, ex[6] -> 13/132, ex[7] -> 2/89, ex[8] -> 7/117, ex[9] -> 3/62};
 
@@ -1880,16 +1928,6 @@ GetMomentumTwistorExpression[%%%, PSanalytic] /. PSptexp
 
 GetMomentumTwistorExpression[{s[1,2],s[2,3],s[3,4],s[4,5],s[1,5],s[5]}, PSanalytic] /. PSpt
 FFRatMod[%,FFPrimeNo[0]]
-
-
-PSpt
-
-
-?FFAlgRatFunEval
-
-
-Position[denoms /. PSpt // Simplify, Sqrt[__]][[;;,1]]
-Position[denoms /. PSptold // Simplify, Sqrt[__]][[;;,1]]
 
 
 goodsijs = {{1,1/2,-7,39/17,-29/3,-214/51}};
