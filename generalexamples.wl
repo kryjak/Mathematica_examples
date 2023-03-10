@@ -985,7 +985,7 @@ tensorbasis = DeleteCases[tensorbasis,0] // DeleteDuplicates;
 tensorbasis//Length
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Changing variables within FF*)
 
 
@@ -995,7 +995,7 @@ tensorbasis//Length
 RandomInteger[{9999,99999999},2]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*A general example*)
 
 
@@ -1012,7 +1012,7 @@ FFGraphOutput[graphAB,subnode];
 FFReconstructFunction[graphAB,{AA,b}]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*sij -> MTs example*)
 
 
@@ -1054,7 +1054,7 @@ exprmt = GetMomentumTwistorExpression[{(s[1,2]^4+s[4]^2)/s[2,3]},PSanalytic];
 res/exprmt // Simplify
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Note on subgraphs*)
 
 
@@ -1251,7 +1251,7 @@ Do[weight[fams[[-ii]]]=ii, {ii,Length@fams}]
 SortBy[{j[t322ZZZMp2314,0,2,0,1,1,1,1,0,0],j[t331ZZMZp1243,2,1,0,0,1,1,1,0,0],j[t331ZZMZp1342,2,1,0,0,1,1,1,0,0]}, weight[#/.j[t_,x__]:>t] &]
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Testing Frules*)
 
 
@@ -1387,7 +1387,7 @@ Do[Print[
     FruleShift[topo[{{3}, {4}, {5}, {1}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[3], k[2] -> k[2] + p[3]};
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*2q2aW*)
 
 
@@ -1463,6 +1463,47 @@ Do[Print[
     FruleShift[topo[{{2}, {1}, {5}, {3}, {4}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[2], k[2] -> k[2] + p[2]};
     FruleShift[topo[{{1}, {3}, {5}, {4}, {2}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[1], k[2] -> k[2] + p[1]};
     FruleShift[topo[{{1}, {2}, {5}, {4}, {3}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] = {k[1] -> k[1] - p[1], k[2] -> k[2] + p[1]};
+
+
+(* ::Subsection:: *)
+(*2q2aW3pt*)
+
+
+UserDefinedISPs[topo[{{3,4,5}, {p1_}, {p2_}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] := {
+  prop[(k[2]-p[p1]-p[p2])^2], prop[(k[2]-p[p1])^2],
+  dot[k[1],w[1,p[p1],p[p2]]], dot[k[1],w[2,p[p1],p[p2]]], dot[k[2],w[1,p[p1],p[p2]]], dot[k[2],w[2,p[p1],p[p2]]]
+};
+
+UserDefinedISPs[topo[{{p2_}, {3,4,5}, {p1_}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}]] := {
+  prop[(k[2]+p[p2])^2], prop[(k[2]+p[p1]+p[p2])^2],
+  dot[k[1],w[1,p[p1],p[p2]]], dot[k[1],w[2,p[p1],p[p2]]], dot[k[2],w[1,p[p1],p[p2]]], dot[k[2],w[2,p[p1],p[p2]]]
+};
+
+UserDefinedISPs[topo[{{3,4,5},{p1_}}, {{}, {}, {}}, {{p2_}}, {{}, {}, {}}, {}]] := {
+  prop[(k[2]+p[p1])^2],
+  dot[k[1],w[1,p[p1],p[p2]]], dot[k[1],w[2,p[p1],p[p2]]], dot[k[2],w[1,p[p1],p[p2]]], dot[k[2],w[2,p[p1],p[p2]]]
+};
+
+UserDefinedISPs[topo[{{p1_},{p2_}}, {{}, {}, {}}, {{3,4,5}}, {{}, {}, {}}, {}]] := {
+  prop[(k[2]+p[p2])^2],
+  dot[k[1],w[1,p[p1],p[p2]]], dot[k[1],w[2,p[p1],p[p2]]], dot[k[2],w[1,p[p1],p[p2]]], dot[k[2],w[2,p[p1],p[p2]]]
+};
+
+UserDefinedISPs[topo[{{p1_}}, {{}, {}, {}}, {{p2_}}, {{}, {}, {}}, {{3,4,5}}]] := {
+  prop[(k[2]+p[p1])^2],
+  dot[k[1],w[1,p[p1],p[p2]]], dot[k[1],w[2,p[p1],p[p2]]], dot[k[2],w[1,p[p1],p[p2]]], dot[k[2],w[2,p[p1],p[p2]]]
+};
+
+
+bubble = {topo[{{3,4,5},{2},{1}},{{},{},{}},{},{{},{},{}},{}]};
+
+
+Do[
+propsbub = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@bubble, FreeQ[#,w] &] /. p[5]->-p[1]-p[2]-p[3]-p[4] // DeleteDuplicates;
+hexatri = bubble /. topo[{{5}, {i_}, {j_}, {k_}, {l_}}, {{}, {}, {}}, {}, {{}, {}, {}}, {}] -> topo[{{5}, {i}, {j}, {k}}, {{}, {}, {}}, {{l}}, {{}, {}, {}}, {}];
+propsht = Select[Join[MakePropagators[#],UserDefinedISPs[#]]&@hexatri, FreeQ[#,w] &] /. p[5]->-p[1]-p[2]-p[3]-p[4] (* /. {k[1] -> k[1] - p[3], k[2] -> k[2] + p[3]} *);
+Print[propsbub[[{1, 2, 3, 4, 5, 6, 11, 7 ,8 ,9, 10}]]===propsht];
+,{bubble,bubbles[[;;6]]}]
 
 
 (* ::Section::Closed:: *)
